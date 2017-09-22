@@ -1,0 +1,2 @@
+juju-addrs: ["1.2.3.4"]
+log-level: debug
