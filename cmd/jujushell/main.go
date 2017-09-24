@@ -45,7 +45,7 @@ func serve(configPath string) error {
 	}
 	log := logging.Logger()
 	defer log.Sync()
-	log.Infow("starting the server", "log level", conf.LogLevel)
+	log.Infow("starting the server", "log level", conf.LogLevel, "port", conf.Port)
 	server, err := jujushell.NewServer(jujushell.Params{
 		JujuAddrs: conf.JujuAddrs,
 	})

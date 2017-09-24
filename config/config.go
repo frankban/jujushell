@@ -23,6 +23,8 @@ type Config struct {
 	TLSKey  string `yaml:"tls-key"`
 	// LogLevel holds the logging level to use when running the server.
 	LogLevel zapcore.Level `yaml:"log-level"`
+	// Port holds the port on which the server will start listening.
+	Port int
 }
 
 // Read reads the configuration options from a file at the given path.
@@ -52,6 +54,9 @@ func validate(c Config) error {
 	var missing []string
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
+	}
+	if c.Port <= 0 {
+		missing = append(missing, "port")
 	}
 	if len(missing) != 0 {
 		return fmt.Errorf("missing fields %s", strings.Join(missing, ", "))

@@ -8,9 +8,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"gopkg.in/errgo.v1"
 
 	"github.com/CanonicalLtd/jujushell/apiparams"
+	"github.com/CanonicalLtd/jujushell/internal/juju"
 	"github.com/CanonicalLtd/jujushell/internal/logging"
+	"github.com/CanonicalLtd/jujushell/internal/lxd"
 )
 
 // Register registers the API handlers in the given mux.
@@ -40,37 +43,94 @@ func serveWebsocket(jujuAddrs []string) http.Handler {
 		log.Debugw("WebSocket connection established", "remote-addr", r.RemoteAddr)
 		defer conn.Close()
 
-		// Start serving WebSocket requests.
-		var req apiparams.Request
-		var resp apiparams.Response
-		for {
-			if err = conn.ReadJSON(&req); err != nil {
-				log.Debugw("cannot read WebSocket request", "err", err)
-				return
-			}
-			resp = handleRequest(req)
-			if err = conn.WriteJSON(resp); err != nil {
-				log.Debugw("cannot write WebSocket response", "err", err)
-				return
-			}
+		// Start serving requests.
+		username, err := handleLogin(conn, jujuAddrs)
+		if err != nil {
+			log.Debugw("cannot authenticate the user", "err", err)
+			return
 		}
-		log.Debugw("WebSocket disconnected", "remote-addr", r.RemoteAddr)
+		address, err := handleStart(conn, username)
+		if err != nil {
+			log.Debugw("cannot start user session", "user", username, "err", err)
+			return
+		}
+		if err = handleSession(conn, address); err != nil {
+			log.Debugw("session closed", "user", username, "address", address, "err", err)
+			return
+		}
 	})
 }
 
-// handleRequest handles WebSocket request/response traffic.
-func handleRequest(req apiparams.Request) apiparams.Response {
-	switch req.Operation {
-	case "ping":
-		return apiparams.Response{
-			Code:    apiparams.OK,
-			Message: "pong",
-		}
+// handleLogin checks that the user has the right credentials for logging into
+// the Juju controller at the give addresses.
+// Example request/response:
+//     --> {"operation": "login", "username": "admin", "password": "secret"}
+//     <-- {"code": "ok", "message": "logged in as \"admin\""}
+func handleLogin(conn *websocket.Conn, jujuAddrs []string) (username string, err error) {
+	var req apiparams.Login
+	if err = conn.ReadJSON(&req); err != nil {
+		return "", writeError(conn, errgo.Mask(err))
 	}
-	return apiparams.Response{
-		Code:    apiparams.Error,
-		Message: fmt.Sprintf("invalid operation %q", req.Operation),
+	if req.Operation != apiparams.OpLogin {
+		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
 	}
+	username, err = juju.Authenticate(jujuAddrs, req.Username, req.Password, req.Macaroons)
+	if err != nil {
+		return "", writeError(conn, errgo.Mask(err))
+	}
+	return username, writeOK(conn, "logged in as %q", username)
+}
+
+// handleStart ensures an LXD is available for the given username, by checking
+// whether one container is already started or, if not, creating one.
+// Example request/response:
+//     --> {"operation": "start"}
+//     <-- {"code": "ok", "message": "session is ready"}
+func handleStart(conn *websocket.Conn, username string) (address string, err error) {
+	var req apiparams.Start
+	if err = conn.ReadJSON(&req); err != nil {
+		return "", writeError(conn, errgo.Mask(err))
+	}
+	if req.Operation != apiparams.OpStart {
+		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
+	}
+	address, err = lxd.Ensure(username)
+	if err != nil {
+		return "", writeError(conn, errgo.Mask(err))
+	}
+	return address, writeOK(conn, "session is ready")
+}
+
+// handleSession proxies traffic from the client to the LXD instance at the
+// given address.
+func handleSession(conn *websocket.Conn, address string) error {
+	return nil
+}
+
+func writeError(conn *websocket.Conn, err error) error {
+	if werr := writeResponse(conn, apiparams.Error, err.Error()); werr != nil {
+		return errgo.Notef(werr, "original error: %s", err)
+	}
+	return err
+}
+
+func writeOK(conn *websocket.Conn, format string, a ...interface{}) error {
+	msg := fmt.Sprintf(format, a...)
+	if werr := writeResponse(conn, apiparams.OK, msg); werr != nil {
+		return errgo.Notef(werr, "original message: %s", msg)
+	}
+	return nil
+}
+
+func writeResponse(conn *websocket.Conn, code apiparams.ResponseCode, message string) error {
+	resp := apiparams.Response{
+		Code:    code,
+		Message: message,
+	}
+	if err := conn.WriteJSON(resp); err != nil {
+		return errgo.Notef(err, "cannot write WebSocket response")
+	}
+	return nil
 }
 
 // webSocketBufferSize holds the frame size for WebSocket messages.
