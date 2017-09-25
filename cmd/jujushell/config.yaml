@@ -1,0 +1,3 @@
+port: 8047
+juju-addrs: ["10.0.42.81:17070"]
+log-level: debug
