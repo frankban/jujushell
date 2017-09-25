@@ -1,4 +1,7 @@
-#!/home/frankban/code/pip-venv/bin/python
+#!/usr/bin/env python3
+
+# An example WebSocket client that can be used while developing jujushell.
+# Requires "apt install python3-websocket".
 
 import json
 
