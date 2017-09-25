@@ -19,12 +19,12 @@ import (
 // Register registers the API handlers in the given mux.
 func Register(mux *http.ServeMux, jujuAddrs []string) error {
 	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", serveWebsocket(jujuAddrs))
+	mux.Handle("/ws/", serveWebSocket(jujuAddrs))
 	return nil
 }
 
-// serveWebsocket handles WebSocket connections.
-func serveWebsocket(jujuAddrs []string) http.Handler {
+// serveWebSocket handles WebSocket connections.
+func serveWebSocket(jujuAddrs []string) http.Handler {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  webSocketBufferSize,
 		WriteBufferSize: webSocketBufferSize,
@@ -34,10 +34,7 @@ func serveWebsocket(jujuAddrs []string) http.Handler {
 		// Upgrade the HTTP connection.
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Errorw(
-				"cannot upgrade to WebSocket",
-				"url", r.URL,
-				"err", err)
+			log.Errorw("cannot upgrade to WebSocket", "url", r.URL, "err", err)
 			return
 		}
 		log.Debugw("WebSocket connection established", "remote-addr", r.RemoteAddr)
