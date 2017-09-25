@@ -23,7 +23,7 @@ func Setup(level zapcore.Level) error {
 
 func Logger() *zap.SugaredLogger {
 	if logger == nil {
-		panic("logger not set up")
+		Setup(zapcore.InfoLevel)
 	}
 	return logger
 }
