@@ -33,9 +33,14 @@ func Authenticate(addrs []string, username, password string, macaroons []macaroo
 		RetryDelay:         500 * time.Millisecond,
 		Timeout:            15 * time.Second,
 	}
-	conn, err := api.Open(info, opts)
+	conn, err := apiOpen(info, opts)
 	if err != nil {
 		return "", errgo.Notef(err, "cannot authenticate user")
 	}
 	return conn.AuthTag().Id(), nil
+}
+
+// apiOpen is defined as a variable for testing.
+var apiOpen = func(info *api.Info, opts api.DialOpts) (api.Connection, error) {
+	return api.Open(info, opts)
 }
