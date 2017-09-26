@@ -18,14 +18,14 @@ import (
 )
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, jujuAddrs []string) error {
+func Register(mux *http.ServeMux, jujuAddrs []string, imageName string) error {
 	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", serveWebSocket(jujuAddrs))
+	mux.Handle("/ws/", serveWebSocket(jujuAddrs, imageName))
 	return nil
 }
 
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(jujuAddrs []string) http.Handler {
+func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  webSocketBufferSize,
 		WriteBufferSize: webSocketBufferSize,
@@ -47,7 +47,7 @@ func serveWebSocket(jujuAddrs []string) http.Handler {
 			log.Debugw("cannot authenticate the user", "err", err)
 			return
 		}
-		address, err := handleStart(conn, username)
+		address, err := handleStart(conn, username, imageName)
 		if err != nil {
 			log.Debugw("cannot start user session", "user", username, "err", err)
 			return
@@ -80,11 +80,11 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string) (username string, err
 }
 
 // handleStart ensures an LXD is available for the given username, by checking
-// whether one container is already started or, if not, creating one.
-// Example request/response:
+// whether one container is already started or, if not, creating one based on
+// the provided image name. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn *websocket.Conn, username string) (address string, err error) {
+func handleStart(conn *websocket.Conn, username, imageName string) (address string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
 		return "", writeError(conn, errgo.Mask(err))
@@ -92,7 +92,7 @@ func handleStart(conn *websocket.Conn, username string) (address string, err err
 	if req.Operation != apiparams.OpStart {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
-	address, err = lxd.Ensure(username)
+	address, err = lxd.Ensure(username, imageName)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}

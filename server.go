@@ -12,7 +12,7 @@ import (
 // NewServer returns a new handler that handles juju shell requests.
 func NewServer(p Params) (http.Handler, error) {
 	mux := http.NewServeMux()
-	if err := api.Register(mux, p.JujuAddrs); err != nil {
+	if err := api.Register(mux, p.JujuAddrs, p.ImageName); err != nil {
 		return nil, err
 	}
 	return mux, nil
@@ -20,6 +20,8 @@ func NewServer(p Params) (http.Handler, error) {
 
 // Params holds parameters for running the server.
 type Params struct {
+	// ImageName holds the name of the LXD image to use to create containers.
+	ImageName string `yaml:"image-name"`
 	// JujuAddrs holds the addresses of the current Juju controller.
 	JujuAddrs []string
 }
