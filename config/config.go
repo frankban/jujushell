@@ -16,15 +16,17 @@ import (
 
 // Config holds the server configuration.
 type Config struct {
+	// ImageName holds the name of the LXD image to use to create containers.
+	ImageName string `yaml:"image-name"`
 	// JujuAddrs holds the addresses of the current Juju controller.
 	JujuAddrs []string `yaml:"juju-addrs"`
-	// TLSCert and TLSKey hold TLS info for running the server.
-	TLSCert string `yaml:"tls-cert"`
-	TLSKey  string `yaml:"tls-key"`
 	// LogLevel holds the logging level to use when running the server.
 	LogLevel zapcore.Level `yaml:"log-level"`
 	// Port holds the port on which the server will start listening.
 	Port int
+	// TLSCert and TLSKey hold TLS info for running the server.
+	TLSCert string `yaml:"tls-cert"`
+	TLSKey  string `yaml:"tls-key"`
 }
 
 // Read reads the configuration options from a file at the given path.
@@ -52,6 +54,9 @@ func Read(path string) (*Config, error) {
 // validate validates the configuration options.
 func validate(c Config) error {
 	var missing []string
+	if c.ImageName == "" {
+		missing = append(missing, "image-name")
+	}
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
 	}
