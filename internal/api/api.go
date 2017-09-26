@@ -14,6 +14,7 @@ import (
 	"github.com/CanonicalLtd/jujushell/internal/juju"
 	"github.com/CanonicalLtd/jujushell/internal/logging"
 	"github.com/CanonicalLtd/jujushell/internal/lxd"
+	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
 )
 
 // Register registers the API handlers in the given mux.
@@ -101,7 +102,14 @@ func handleStart(conn *websocket.Conn, username string) (address string, err err
 // handleSession proxies traffic from the client to the LXD instance at the
 // given address.
 func handleSession(conn *websocket.Conn, address string) error {
-	return nil
+	// The path must reflect what used by the Terminado service which is
+	// running in the LXD container.
+	addr := "ws://" + address + "/websocket"
+	lxcconn, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	if err != nil {
+		return errgo.Notef(err, "cannot dial %s", addr)
+	}
+	return errgo.Mask(wsproxy.Copy(conn, lxcconn))
 }
 
 func writeError(conn *websocket.Conn, err error) error {
