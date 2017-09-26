@@ -27,6 +27,10 @@ func Register(mux *http.ServeMux, jujuAddrs []string, imageName string) error {
 // serveWebSocket handles WebSocket connections.
 func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 	upgrader := websocket.Upgrader{
+		// TODO: only allow request from the controller addresses.
+		CheckOrigin: func(*http.Request) bool {
+			return true
+		},
 		ReadBufferSize:  webSocketBufferSize,
 		WriteBufferSize: webSocketBufferSize,
 	}
