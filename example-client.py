@@ -4,12 +4,13 @@
 # Requires "apt install python3-websocket".
 
 import json
+import sys
 
 import websocket
 
 
-def main():
-    conn = websocket.create_connection('ws://localhost:8047/ws/')
+def main(address):
+    conn = websocket.create_connection('ws://{}/ws/'.format(address))
     client = Client(conn)
     client.send({'operation': 'login', 'username': 'admin', 'password': 'aaa'})
     client.send({'operation': 'start'})
@@ -44,4 +45,7 @@ class Client:
 
 
 if __name__ == '__main__':
-    main()
+    address = 'localhost:8047'
+    if len(sys.argv) > 1:
+        address = sys.argv[1]
+    main(address)
