@@ -51,7 +51,7 @@ class Client:
 
 
 if __name__ == '__main__':
-    address = 'ws://localhost:8047'
+    address = 'wss://localhost:8047'
     if len(sys.argv) > 1:
         address = sys.argv[1]
     main(address)

@@ -25,12 +25,14 @@ var readTests = []struct {
 	content: mustMarshalYAML(map[string]interface{}{
 		"image-name": "myimage",
 		"juju-addrs": []string{"1.2.3.4", "4.3.2.1"},
+		"juju-cert":  "my Juju cert",
 		"log-level":  "debug",
 		"port":       8047,
 	}),
 	expectedConfig: &config.Config{
 		ImageName: "myimage",
 		JujuAddrs: []string{"1.2.3.4", "4.3.2.1"},
+		JujuCert:  "my Juju cert",
 		LogLevel:  zapcore.DebugLevel,
 		Port:      8047,
 	},
@@ -40,7 +42,7 @@ var readTests = []struct {
 	expectedError: `cannot parse ".*": yaml: unmarshal errors:\n.*`,
 }, {
 	about:         "invalid config",
-	expectedError: `invalid configuration at ".*": missing fields image-name, juju-addrs, port`,
+	expectedError: `invalid configuration at ".*": missing fields image-name, juju-addrs, juju-cert, port`,
 }}
 
 func TestRead(t *testing.T) {

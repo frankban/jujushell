@@ -51,6 +51,7 @@ func serve(configPath string) error {
 	handler, err := jujushell.NewServer(jujushell.Params{
 		ImageName: conf.ImageName,
 		JujuAddrs: conf.JujuAddrs,
+		JujuCert:  conf.JujuCert,
 	})
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")
