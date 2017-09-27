@@ -42,7 +42,7 @@ func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 			log.Errorw("cannot upgrade to WebSocket", "url", r.URL, "err", err)
 			return
 		}
-		log.Debugw("WebSocket connection established", "remote-addr", r.RemoteAddr)
+		log.Infow("WebSocket connection established", "remote-addr", r.RemoteAddr)
 		defer conn.Close()
 
 		// Start serving requests.
@@ -51,15 +51,18 @@ func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 			log.Debugw("cannot authenticate the user", "err", err)
 			return
 		}
+		log.Debugw("user authenticated", "user", username)
 		address, err := handleStart(conn, username, imageName)
 		if err != nil {
 			log.Debugw("cannot start user session", "user", username, "err", err)
 			return
 		}
+		log.Debugw("session started", "user", username, "address", address)
 		if err = handleSession(conn, address); err != nil {
 			log.Debugw("session closed", "user", username, "address", address, "err", err)
 			return
 		}
+		log.Infow("closing WebSocket connection", "remote-addr", r.RemoteAddr)
 	})
 }
 
