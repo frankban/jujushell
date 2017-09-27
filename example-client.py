@@ -4,13 +4,19 @@
 # Requires "apt install python3-websocket".
 
 import json
+import ssl
 import sys
 
 import websocket
 
 
+SSLOPT = {'cert_reqs': ssl.CERT_NONE}
+
+
 def main(address):
-    conn = websocket.create_connection('ws://{}/ws/'.format(address))
+    url = address + '/ws/'
+    print('connecting to ' + url)
+    conn = websocket.create_connection(url, sslopt=SSLOPT)
     client = Client(conn)
     client.send({'operation': 'login', 'username': 'admin', 'password': 'aaa'})
     client.send({'operation': 'start'})
@@ -45,7 +51,7 @@ class Client:
 
 
 if __name__ == '__main__':
-    address = 'localhost:8047'
+    address = 'wss://localhost:8047'
     if len(sys.argv) > 1:
         address = sys.argv[1]
     main(address)

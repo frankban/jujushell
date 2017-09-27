@@ -18,14 +18,14 @@ import (
 )
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, jujuAddrs []string, imageName string) error {
+func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, imageName string) error {
 	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", serveWebSocket(jujuAddrs, imageName))
+	mux.Handle("/ws/", serveWebSocket(jujuAddrs, jujuCert, imageName))
 	return nil
 }
 
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
+func serveWebSocket(jujuAddrs []string, jujuCert, imageName string) http.Handler {
 	upgrader := websocket.Upgrader{
 		// TODO: only allow request from the controller addresses.
 		CheckOrigin: func(*http.Request) bool {
@@ -46,7 +46,7 @@ func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 		defer conn.Close()
 
 		// Start serving requests.
-		username, err := handleLogin(conn, jujuAddrs)
+		username, err := handleLogin(conn, jujuAddrs, jujuCert)
 		if err != nil {
 			log.Debugw("cannot authenticate the user", "err", err)
 			return
@@ -71,7 +71,7 @@ func serveWebSocket(jujuAddrs []string, imageName string) http.Handler {
 // Example request/response:
 //     --> {"operation": "login", "username": "admin", "password": "secret"}
 //     <-- {"code": "ok", "message": "logged in as \"admin\""}
-func handleLogin(conn *websocket.Conn, jujuAddrs []string) (username string, err error) {
+func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (username string, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
 		return "", writeError(conn, errgo.Mask(err))
@@ -79,7 +79,11 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string) (username string, err
 	if req.Operation != apiparams.OpLogin {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
 	}
-	username, err = juju.Authenticate(jujuAddrs, req.Username, req.Password, req.Macaroons)
+	username, err = juju.Authenticate(jujuAddrs, juju.Credentials{
+		Username:  req.Username,
+		Password:  req.Password,
+		Macaroons: req.Macaroons,
+	}, jujuCert)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}

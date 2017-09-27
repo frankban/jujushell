@@ -16,6 +16,11 @@ import (
 	"github.com/CanonicalLtd/jujushell/internal/juju"
 )
 
+var (
+	addrs = []string{"1.2.3.4"}
+	cert  = "juju-cert"
+)
+
 var authenticateTests = []struct {
 	about            string
 	username         string
@@ -69,8 +74,11 @@ func TestAuthenticate(t *testing.T) {
 			}
 			restore := patchAPIOpen(c, conn, apiOpenError, expectedInfo)
 			defer restore()
-			username, err := juju.Authenticate(
-				[]string{"1.2.3.4"}, test.username, test.password, test.macaroons)
+			username, err := juju.Authenticate(addrs, juju.Credentials{
+				Username:  test.username,
+				Password:  test.password,
+				Macaroons: test.macaroons,
+			}, cert)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				c.Assert(username, qt.Equals, "")
@@ -87,7 +95,8 @@ func TestAuthenticate(t *testing.T) {
 func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Info) (restore func()) {
 	original := *juju.APIOpen
 	*juju.APIOpen = func(info *api.Info, opts api.DialOpts) (api.Connection, error) {
-		c.Assert(info.Addrs, qt.DeepEquals, []string{"1.2.3.4"})
+		c.Assert(info.Addrs, qt.DeepEquals, addrs)
+		c.Assert(info.CACert, qt.Equals, cert)
 		if info.Tag != nil {
 			c.Assert(info.Tag.String(), qt.Equals, expectedInfo.Tag.String())
 		}
@@ -99,9 +108,8 @@ func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Inf
 			c.Assert(info.Macaroons, qt.IsNil)
 		}
 		c.Assert(opts, qt.DeepEquals, api.DialOpts{
-			InsecureSkipVerify: true,
-			RetryDelay:         500 * time.Millisecond,
-			Timeout:            15 * time.Second,
+			RetryDelay: 500 * time.Millisecond,
+			Timeout:    15 * time.Second,
 		})
 		return conn, err
 	}

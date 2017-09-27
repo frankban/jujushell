@@ -4,11 +4,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"gopkg.in/errgo.v1"
 
@@ -46,16 +48,39 @@ func serve(configPath string) error {
 	log := logging.Logger()
 	defer log.Sync()
 	log.Infow("starting the server", "log level", conf.LogLevel, "port", conf.Port)
-	server, err := jujushell.NewServer(jujushell.Params{
+	handler, err := jujushell.NewServer(jujushell.Params{
 		ImageName: conf.ImageName,
 		JujuAddrs: conf.JujuAddrs,
+		JujuCert:  conf.JujuCert,
 	})
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")
 	}
-	// TODO: TLS configuration.
-	if err := http.ListenAndServe(":8047", server); err != nil {
-		return errgo.Notef(err, "cannot start the server")
+	tlsConf, err := tlsConfig(conf.TLSCert, conf.TLSKey)
+	if err != nil {
+		return errgo.Notef(err, "cannot retrieve TLS configuration")
 	}
-	return nil
+	server := &http.Server{
+		Addr:    ":" + strconv.Itoa(conf.Port),
+		Handler: handler,
+	}
+	if tlsConf != nil {
+		server.TLSConfig = tlsConf
+		return server.ListenAndServeTLS("", "")
+	}
+	return server.ListenAndServe()
+}
+
+// tlsConfig returns a TLS configuration for the given keys.
+func tlsConfig(cert, key string) (*tls.Config, error) {
+	if cert == "" && key == "" {
+		return nil, nil
+	}
+	c, err := tls.X509KeyPair([]byte(cert), []byte(key))
+	if err != nil {
+		return nil, errgo.Notef(err, "cannot create TLS certificate")
+	}
+	return &tls.Config{
+		Certificates: []tls.Certificate{c},
+	}, nil
 }

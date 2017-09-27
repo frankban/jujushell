@@ -31,7 +31,8 @@ func TestRegister(t *testing.T) {
 	c := qt.New(t)
 	// Set up the WebSocket server.
 	mux := http.NewServeMux()
-	err := api.Register(mux, []string{"1.2.3.4"})
+	jujuAddrs, jujuCert, imageName := []string{"1.2.3.4"}, "cert", "image"
+	err := api.Register(mux, jujuAddrs, jujuCert, imageName)
 	c.Assert(err, qt.Equals, nil)
 	server := httptest.NewServer(mux)
 	defer server.Close()

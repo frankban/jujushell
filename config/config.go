@@ -20,10 +20,13 @@ type Config struct {
 	ImageName string `yaml:"image-name"`
 	// JujuAddrs holds the addresses of the current Juju controller.
 	JujuAddrs []string `yaml:"juju-addrs"`
+	// JujuCert holds the CA certificate that will be used to validate the
+	// controller's certificate, in PEM format.
+	JujuCert string `yaml:"juju-cert"`
 	// LogLevel holds the logging level to use when running the server.
 	LogLevel zapcore.Level `yaml:"log-level"`
 	// Port holds the port on which the server will start listening.
-	Port int
+	Port int `yaml:"port"`
 	// TLSCert and TLSKey hold TLS info for running the server.
 	TLSCert string `yaml:"tls-cert"`
 	TLSKey  string `yaml:"tls-key"`
@@ -59,6 +62,9 @@ func validate(c Config) error {
 	}
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
+	}
+	if c.JujuCert == "" {
+		missing = append(missing, "juju-cert")
 	}
 	if c.Port <= 0 {
 		missing = append(missing, "port")
