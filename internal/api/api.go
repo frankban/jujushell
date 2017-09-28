@@ -115,7 +115,7 @@ func handleStart(conn *websocket.Conn, username, imageName string) (address stri
 func handleSession(conn *websocket.Conn, address string) error {
 	// The path must reflect what used by the Terminado service which is
 	// running in the LXD container.
-	addr := "ws://" + address + "/websocket"
+	addr := "ws://" + address + ":8765/websocket"
 	lxcconn, _, err := websocket.DefaultDialer.Dial(addr, nil)
 	if err != nil {
 		return errgo.Notef(err, "cannot dial %s", addr)
