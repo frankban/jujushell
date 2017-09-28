@@ -13,7 +13,7 @@ import (
 	"github.com/CanonicalLtd/jujushell/apiparams"
 	"github.com/CanonicalLtd/jujushell/internal/juju"
 	"github.com/CanonicalLtd/jujushell/internal/logging"
-	"github.com/CanonicalLtd/jujushell/internal/lxd"
+	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
 	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
 )
 
@@ -103,7 +103,7 @@ func handleStart(conn *websocket.Conn, username, imageName string) (address stri
 	if req.Operation != apiparams.OpStart {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
-	address, err = lxd.Ensure(username, imageName)
+	address, err = lxdutils.Ensure(username, imageName)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
