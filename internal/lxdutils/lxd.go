@@ -6,17 +6,16 @@ package lxdutils
 import (
 	"time"
 
-	"gopkg.in/errgo.v1"
-
 	"github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
+	"gopkg.in/errgo.v1"
 )
 
 func getContainerAddr(containerName string, srv lxd.ContainerServer) (string, error) {
 	for i := 0; i < 30; i++ {
 		state, _, err := srv.GetContainerState(containerName)
 		if err != nil {
-			return "", errgo.Mask(err)
+			return "", errgo.Notef(err, "cannot get container state for %q", containerName)
 		}
 		network := state.Network["eth0"]
 		for _, addr := range network.Addresses {
@@ -27,7 +26,7 @@ func getContainerAddr(containerName string, srv lxd.ContainerServer) (string, er
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return "", errgo.Newf("No address found for %s", containerName)
+	return "", errgo.Newf("no address found for %q", containerName)
 }
 
 func createContainer(containerName string, imageName string, srv lxd.ContainerServer) error {
@@ -42,7 +41,7 @@ func createContainer(containerName string, imageName string, srv lxd.ContainerSe
 	// Get LXD to create the container.
 	op, err := srv.CreateContainer(req)
 	if err != nil {
-		return errgo.Mask(err)
+		return errgo.Notef(err, "cannot create container")
 	}
 
 	// Wait for the operation to complete.
@@ -61,7 +60,7 @@ func startContainer(containerName string, srv lxd.ContainerServer) error {
 
 	op, err := srv.UpdateContainerState(containerName, req, "")
 	if err != nil {
-		return errgo.Mask(err)
+		return errgo.Notef(err, "cannot start container")
 	}
 
 	// Wait for the operation to complete.
@@ -75,7 +74,7 @@ func startContainer(containerName string, srv lxd.ContainerServer) error {
 // its address.
 func Ensure(username string, imageName string) (string, error) {
 	// Connect to LXD over the Unix socket.
-	srv, err := lxd.ConnectLXDUnix("", nil)
+	srv, err := lxd.ConnectLXDUnix("/var/snap/lxd/common/lxd/unix.socket", nil)
 	if err != nil {
 		return "", errgo.Mask(err)
 	}
