@@ -21,6 +21,7 @@ func Setup(level zapcore.Level) error {
 	return nil
 }
 
+// Logger returns a logger. It sets the logger up if not done yet.
 func Logger() *zap.SugaredLogger {
 	if logger == nil {
 		Setup(zapcore.InfoLevel)

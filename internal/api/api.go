@@ -21,6 +21,7 @@ import (
 func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, imageName string) error {
 	// TODO: validate jujuAddrs.
 	mux.Handle("/ws/", serveWebSocket(jujuAddrs, jujuCert, imageName))
+	mux.HandleFunc("/status/", statusHandler)
 	return nil
 }
 
