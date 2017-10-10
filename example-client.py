@@ -18,7 +18,7 @@ def main(address):
     print('connecting to ' + url)
     conn = websocket.create_connection(url, sslopt=SSLOPT)
     client = Client(conn)
-    client.send({'operation': 'login', 'username': 'admin', 'password': 'aaabbb'})
+    client.send({'operation': 'login', 'username': 'admin', 'password': 'aaa'})
     client.send({'operation': 'start'})
 
 

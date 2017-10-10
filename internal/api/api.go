@@ -53,14 +53,14 @@ func serveWebSocket(jujuAddrs []string, jujuCert, imageName string) http.Handler
 			return
 		}
 		log.Debugw("user authenticated", "user", username)
-		address, err := handleStart(conn, username, imageName)
+		addr, err := handleStart(conn, username, imageName)
 		if err != nil {
 			log.Debugw("cannot start user session", "user", username, "err", err)
 			return
 		}
-		log.Debugw("session started", "user", username, "address", address)
-		if err = handleSession(conn, address); err != nil {
-			log.Debugw("session closed", "user", username, "address", address, "err", err)
+		log.Debugw("session started", "user", username, "address", addr)
+		if err = handleSession(conn, addr); err != nil {
+			log.Debugw("session closed", "user", username, "address", addr, "err", err)
 			return
 		}
 		log.Infow("closing WebSocket connection", "remote-addr", r.RemoteAddr)
@@ -86,7 +86,7 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (use
 		Macaroons: req.Macaroons,
 	}, jujuCert)
 	if err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return "", writeError(conn, errgo.Notef(err, "cannot log into juju"))
 	}
 	return username, writeOK(conn, "logged in as %q", username)
 }
@@ -96,7 +96,7 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (use
 // the provided image name. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn *websocket.Conn, username, imageName string) (address string, err error) {
+func handleStart(conn *websocket.Conn, username, imageName string) (addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
 		return "", writeError(conn, errgo.Mask(err))
@@ -104,22 +104,26 @@ func handleStart(conn *websocket.Conn, username, imageName string) (address stri
 	if req.Operation != apiparams.OpStart {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
-	address, err = lxdutils.Ensure(username, imageName)
+	addr, err = lxdutils.Ensure(username, imageName)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
-	return address, writeOK(conn, "session is ready")
+	url := fmt.Sprintf("http://%s:%d/status", addr, termserverPort)
+	if err = waitReady(url); err != nil {
+		return "", writeError(conn, errgo.Mask(err))
+	}
+	return addr, writeOK(conn, "session is ready")
 }
 
 // handleSession proxies traffic from the client to the LXD instance at the
 // given address.
-func handleSession(conn *websocket.Conn, address string) error {
+func handleSession(conn *websocket.Conn, addr string) error {
 	// The path must reflect what used by the Terminado service which is
 	// running in the LXD container.
-	addr := "ws://" + address + ":8765/websocket"
-	lxcconn, _, err := websocket.DefaultDialer.Dial(addr, nil)
+	url := fmt.Sprintf("ws://%s:%d/websocket", addr, termserverPort)
+	lxcconn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
-		return errgo.Notef(err, "cannot dial %s", addr)
+		return errgo.Notef(err, "cannot dial %s", url)
 	}
 	return errgo.Mask(wsproxy.Copy(conn, lxcconn))
 }
@@ -150,5 +154,9 @@ func writeResponse(conn *websocket.Conn, code apiparams.ResponseCode, message st
 	return nil
 }
 
-// webSocketBufferSize holds the frame size for WebSocket messages.
-const webSocketBufferSize = 65536
+const (
+	// webSocketBufferSize holds the frame size for WebSocket messages.
+	webSocketBufferSize = 65536
+	// termserverPort holds the port on which the term server is listening.
+	termserverPort = 8765
+)

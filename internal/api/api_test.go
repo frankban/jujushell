@@ -24,7 +24,7 @@ var registerTests = []struct {
 	expectedError: `invalid operation "bad wolf": expected "login"`,
 }, {
 	op:            "login",
-	expectedError: `either userpass or macaroons must be provided`,
+	expectedError: `cannot log into juju: either userpass or macaroons must be provided`,
 }}
 
 func TestRegister(t *testing.T) {
