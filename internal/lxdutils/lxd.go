@@ -6,25 +6,31 @@ package lxdutils
 import (
 	"time"
 
-	"github.com/lxc/lxd/client"
+	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	"gopkg.in/errgo.v1"
 )
 
+const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
+
+// Connect establishes a connection to the local snapped LXD server.
+func Connect() (lxd.ContainerServer, error) {
+	srv, err := lxd.ConnectLXDUnix(lxdSocket, nil)
+	if err != nil {
+		return nil, errgo.Notef(err, "cannot connect to local LXD server")
+	}
+	return srv, nil
+}
+
 // Ensure ensures that an LXD is available for the given username, and returns
 // its address.
-func Ensure(username string, imageName string) (string, error) {
-	// Connect to LXD over the Unix socket.
-	srv, err := lxd.ConnectLXDUnix("/var/snap/lxd/common/lxd/unix.socket", nil)
-	if err != nil {
-		return "", errgo.Mask(err)
-	}
-	containerName := "termserver-" + username
+func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
+	containerName := "termserver-" + user
 
 	// Check for existing container.
 	containers, err := srv.GetContainers()
 	if err != nil {
-		return "", errgo.Mask(err)
+		return "", errgo.Notef(err, "cannot get containers")
 	}
 	var created, started bool
 	for _, container := range containers {
@@ -37,7 +43,7 @@ func Ensure(username string, imageName string) (string, error) {
 
 	// Create and start the container if required.
 	if !created {
-		if err = createContainer(containerName, imageName, srv); err != nil {
+		if err = createContainer(containerName, image, srv); err != nil {
 			return "", errgo.Mask(err)
 		}
 	}
@@ -48,22 +54,22 @@ func Ensure(username string, imageName string) (string, error) {
 	}
 
 	// Retrieve and return the container address.
-	address, err := containerAddr(containerName, srv)
+	addr, err := containerAddr(containerName, srv)
 	if err != nil {
 		return "", errgo.Mask(err)
 	}
-	return address, nil
+	return addr, nil
 }
 
 // createContainer creates a container with the given name using the given
 // image name.
-func createContainer(containerName string, imageName string, srv lxd.ContainerServer) error {
+func createContainer(containerName, image string, srv lxd.ContainerServer) error {
 	// Get LXD to create the container.
 	req := api.ContainersPost{
 		Name: containerName,
 		Source: api.ContainerSource{
 			Type:  "image",
-			Alias: imageName,
+			Alias: image,
 		},
 	}
 	op, err := srv.CreateContainer(req)
@@ -73,7 +79,7 @@ func createContainer(containerName string, imageName string, srv lxd.ContainerSe
 
 	// Wait for the operation to complete.
 	if err = op.Wait(); err != nil {
-		return errgo.Mask(err)
+		return errgo.Notef(err, "create container operation failed")
 	}
 	return nil
 }
@@ -92,7 +98,7 @@ func startContainer(containerName string, srv lxd.ContainerServer) error {
 
 	// Wait for the operation to complete.
 	if err = op.Wait(); err != nil {
-		return errgo.Mask(err)
+		return errgo.Notef(err, "start container operation failed")
 	}
 	return nil
 }
@@ -111,7 +117,12 @@ func containerAddr(containerName string, srv lxd.ContainerServer) (string, error
 				return addr.Address, nil
 			}
 		}
-		time.Sleep(100 * time.Millisecond)
+		sleep(100 * time.Millisecond)
 	}
-	return "", errgo.Newf("no address found for %q", containerName)
+	return "", errgo.Newf("cannot find address for %q", containerName)
+}
+
+// sleep is defined as a variable for testing purposes.
+var sleep = func(d time.Duration) {
+	time.Sleep(d)
 }

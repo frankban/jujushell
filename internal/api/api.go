@@ -104,7 +104,11 @@ func handleStart(conn *websocket.Conn, username, imageName string) (addr string,
 	if req.Operation != apiparams.OpStart {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
-	addr, err = lxdutils.Ensure(username, imageName)
+	lxdsrv, err := lxdutils.Connect()
+	if err != nil {
+		return "", writeError(conn, errgo.Mask(err))
+	}
+	addr, err = lxdutils.Ensure(lxdsrv, username, imageName)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
