@@ -32,6 +32,7 @@ func Connect() (lxd.ContainerServer, error) {
 // its address. If the container is not available, one is created using the
 // given image, which is assumed to have juju already installed.
 func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
+	// The "@" character cannot be included in LXD container names.
 	containerName := "termserver-" + strings.Replace(user, "@", "-", 1)
 
 	_, err, _ := group.Do(containerName, func() (interface{}, error) {
