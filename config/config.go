@@ -62,15 +62,17 @@ func validate(c Config) error {
 	}
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
-	}
-	if c.JujuCert == "" {
+		if c.JujuCert == "" {
+			missing = append(missing, "juju-cert")
+		}
+	} else if c.JujuCert == "" && c.JujuAddrs[0] != "jimm.jujucharms.com:443" {
 		missing = append(missing, "juju-cert")
 	}
 	if c.Port <= 0 {
 		missing = append(missing, "port")
 	}
 	if len(missing) != 0 {
-		return fmt.Errorf("missing fields %s", strings.Join(missing, ", "))
+		return fmt.Errorf("missing fields: %s", strings.Join(missing, ", "))
 	}
 	return nil
 }

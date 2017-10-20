@@ -9,7 +9,13 @@ import sys
 
 import websocket
 
-
+# Copy/paste here the macaroon contents for macaroon based auth, for instance
+# taking the value from the GUI with `JSON.stringify(app.user.model.macaroons)`.
+MACAROONS = ''
+# Alternatively set the proper credentials for userpass authentication.
+USERNAME = 'admin'
+PASSWORD = ''
+# No need for verifying the certificate in this example client.
 SSLOPT = {'cert_reqs': ssl.CERT_NONE}
 
 
@@ -18,8 +24,14 @@ def main(address):
     print('connecting to ' + url)
     conn = websocket.create_connection(url, sslopt=SSLOPT)
     client = Client(conn)
-    client.send({'operation': 'login', 'username': 'admin', 'password': 'aaa'})
+    login_request = {'operation': 'login'}
+    if MACAROONS:
+        login_request['macaroons'] = [json.loads(MACAROONS)]
+    else:
+        login_request.update({'username': USERNAME, 'password': PASSWORD})
+    client.send(login_request)
     client.send({'operation': 'start'})
+    client.close()
 
 
 class Client:
@@ -48,6 +60,10 @@ class Client:
             return
         print('<-- {}'.format(resp))
         return json.loads(resp)
+
+    def close(self):
+        """Close the WebSocket connection."""
+        self.conn.close()
 
 
 if __name__ == '__main__':

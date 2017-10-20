@@ -4,14 +4,20 @@
 package lxdutils
 
 import (
+	"strings"
 	"time"
 
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
+	"golang.org/x/sync/singleflight"
 	"gopkg.in/errgo.v1"
 )
 
+// lxdSocket holds the path to the LXD socket provided by snapped LXD.
 const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
+
+// group holds the namespace used for executing tasks suppressing duplicates.
+var group = &singleflight.Group{}
 
 // Connect establishes a connection to the local snapped LXD server.
 func Connect() (lxd.ContainerServer, error) {
@@ -23,34 +29,40 @@ func Connect() (lxd.ContainerServer, error) {
 }
 
 // Ensure ensures that an LXD is available for the given username, and returns
-// its address.
+// its address. If the container is not available, one is created using the
+// given image, which is assumed to have juju already installed.
 func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
-	containerName := "termserver-" + user
+	containerName := "termserver-" + strings.Replace(user, "@", "-", 1)
 
-	// Check for existing container.
-	containers, err := srv.GetContainers()
+	_, err, _ := group.Do(containerName, func() (interface{}, error) {
+		// Check for existing container.
+		containers, err := srv.GetContainers()
+		if err != nil {
+			return nil, errgo.Notef(err, "cannot get containers")
+		}
+		var created, started bool
+		for _, container := range containers {
+			// If container exists, check if it's started.
+			if containerName == container.Name {
+				created = true
+				started = container.Status != "Stopped"
+			}
+		}
+		// Create and start the container if required.
+		if !created {
+			if err = createContainer(containerName, image, srv); err != nil {
+				return nil, errgo.Mask(err)
+			}
+		}
+		if !started {
+			if err = startContainer(containerName, srv); err != nil {
+				return nil, errgo.Mask(err)
+			}
+		}
+		return nil, nil
+	})
 	if err != nil {
-		return "", errgo.Notef(err, "cannot get containers")
-	}
-	var created, started bool
-	for _, container := range containers {
-		// If container exists, check if it's started.
-		if containerName == container.Name {
-			created = true
-			started = container.Status != "Stopped"
-		}
-	}
-
-	// Create and start the container if required.
-	if !created {
-		if err = createContainer(containerName, image, srv); err != nil {
-			return "", errgo.Mask(err)
-		}
-	}
-	if !started {
-		if err = startContainer(containerName, srv); err != nil {
-			return "", errgo.Mask(err)
-		}
+		return "", errgo.Mask(err)
 	}
 
 	// Retrieve and return the container address.
