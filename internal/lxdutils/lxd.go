@@ -4,6 +4,8 @@
 package lxdutils
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"strings"
 	"time"
 
@@ -32,8 +34,7 @@ func Connect() (lxd.ContainerServer, error) {
 // its address. If the container is not available, one is created using the
 // given image, which is assumed to have juju already installed.
 func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
-	// The "@" character cannot be included in LXD container names.
-	containerName := "termserver-" + strings.Replace(user, "@", "-", 1)
+	containerName := containerName(user)
 
 	_, err, _ := group.Do(containerName, func() (interface{}, error) {
 		// Check for existing container.
@@ -72,6 +73,27 @@ func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
 		return "", errgo.Mask(err)
 	}
 	return addr, nil
+}
+
+// containerName generates a container name for the given user name.
+// The container name is unique for every user, so that stealing access is
+// never possible.
+func containerName(user string) string {
+	sum := sha1.Sum([]byte(user))
+	// Some characters cannot be included in LXD container names.
+	r := strings.NewReplacer(
+		"@", "-",
+		"+", "-",
+		".", "-",
+		"_", "-",
+	)
+	name := fmt.Sprintf("ts-%x-%s", sum, r.Replace(user))
+	// LXD containers have a limit of 63 characters for container names, which
+	// seems a bit arbitrary. Anyway, cropping it at 60 should be safe enough.
+	if len(name) > 60 {
+		name = name[:60]
+	}
+	return name
 }
 
 // createContainer creates a container with the given name using the given
