@@ -46,7 +46,7 @@ var internalEnsureTests = []struct {
 	image:         "termserver",
 	expectedError: "cannot create container: bad wolf",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-who",
+		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -61,7 +61,7 @@ var internalEnsureTests = []struct {
 	image:         "termserver",
 	expectedError: "create container operation failed: bad wolf",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-rose",
+		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -76,7 +76,7 @@ var internalEnsureTests = []struct {
 	image:         "termserver",
 	expectedError: "cannot start container: bad wolf",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-who",
+		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -86,7 +86,7 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName: "termserver-who",
+	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error in the operation of starting the container",
 	srv: &srv{
@@ -96,7 +96,7 @@ var internalEnsureTests = []struct {
 	image:         "termserver",
 	expectedError: "start container operation failed: bad wolf",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-rose",
+		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -106,7 +106,7 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName: "termserver-rose",
+	expectedUpdateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 }, {
 	about: "error retrieving container state",
 	srv: &srv{
@@ -114,9 +114,9 @@ var internalEnsureTests = []struct {
 	},
 	user:          "who",
 	image:         "termserver",
-	expectedError: `cannot get container state for "termserver-who": bad wolf`,
+	expectedError: `cannot get container state for "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-who",
+		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -126,16 +126,16 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName:   "termserver-who",
-	expectedGetStateName: "termserver-who",
+	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about:         "error retrieving container address",
 	srv:           &srv{},
 	user:          "who",
 	image:         "termserver",
-	expectedError: `cannot find address for "termserver-who"`,
+	expectedError: `cannot find address for "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"`,
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-who",
+		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -145,8 +145,8 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName:   "termserver-who",
-	expectedGetStateName: "termserver-who",
+	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 	expectedSleepCalls:   300,
 }, {
 	about: "success",
@@ -169,7 +169,7 @@ var internalEnsureTests = []struct {
 	image:        "termserver",
 	expectedAddr: "1.2.3.6",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-rose",
+		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -179,16 +179,16 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName:   "termserver-rose",
-	expectedGetStateName: "termserver-rose",
+	expectedUpdateName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 }, {
 	about: "success with other containers around",
 	srv: &srv{
 		containers: []api.Container{{
-			Name:   "termserver-dalek",
+			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-dalek",
 			Status: "Stopped",
 		}, {
-			Name:   "termserver-cyberman",
+			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-cyberman",
 			Status: "Started",
 		}},
 		getStateAddresses: []api.ContainerStateNetworkAddress{{
@@ -209,7 +209,7 @@ var internalEnsureTests = []struct {
 	image:        "termserver",
 	expectedAddr: "1.2.3.6",
 	expectedCreateReq: api.ContainersPost{
-		Name: "termserver-rose",
+		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 		Source: api.ContainerSource{
 			Type:  "image",
 			Alias: "termserver",
@@ -219,16 +219,16 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName:   "termserver-rose",
-	expectedGetStateName: "termserver-rose",
+	expectedUpdateName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 }, {
 	about: "success with container already created",
 	srv: &srv{
 		containers: []api.Container{{
-			Name:   "termserver-dalek",
+			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-dalek",
 			Status: "Stopped",
 		}, {
-			Name:   "termserver-who",
+			Name:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 			Status: "Stopped",
 		}},
 		getStateAddresses: []api.ContainerStateNetworkAddress{{
@@ -244,13 +244,13 @@ var internalEnsureTests = []struct {
 		Action:  "start",
 		Timeout: -1,
 	},
-	expectedUpdateName:   "termserver-who",
-	expectedGetStateName: "termserver-who",
+	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "success with container already started",
 	srv: &srv{
 		containers: []api.Container{{
-			Name:   "termserver-who",
+			Name:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 			Status: "Started",
 		}},
 		getStateAddresses: []api.ContainerStateNetworkAddress{{
@@ -262,7 +262,41 @@ var internalEnsureTests = []struct {
 	user:                 "who",
 	image:                "termserver",
 	expectedAddr:         "1.2.3.4",
-	expectedGetStateName: "termserver-who",
+	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+}, {
+	about: "success with container already started (external user)",
+	srv: &srv{
+		containers: []api.Container{{
+			Name:   "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
+			Status: "Started",
+		}},
+		getStateAddresses: []api.ContainerStateNetworkAddress{{
+			Address: "1.2.3.4",
+			Family:  "inet",
+			Scope:   "global",
+		}},
+	},
+	user:                 "cyberman@external",
+	image:                "termserver",
+	expectedAddr:         "1.2.3.4",
+	expectedGetStateName: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
+}, {
+	about: "success with container already started (user with special chars)",
+	srv: &srv{
+		containers: []api.Container{{
+			Name:   "ts-424e4758d42a93486f262645f62cd28d41f42499-these-are-the--v",
+			Status: "Started",
+		}},
+		getStateAddresses: []api.ContainerStateNetworkAddress{{
+			Address: "1.2.3.4",
+			Family:  "inet",
+			Scope:   "global",
+		}},
+	},
+	user:                 "these.are@the++voy_ages",
+	image:                "termserver",
+	expectedAddr:         "1.2.3.4",
+	expectedGetStateName: "ts-424e4758d42a93486f262645f62cd28d41f42499-these-are-the--v",
 }}
 
 func TestEnsure(t *testing.T) {
