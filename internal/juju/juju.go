@@ -4,11 +4,14 @@
 package juju
 
 import (
+	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/juju/juju/api"
 	"github.com/juju/names"
 	"gopkg.in/errgo.v1"
+	"gopkg.in/macaroon-bakery.v1/httpbakery"
 	macaroon "gopkg.in/macaroon.v1"
 )
 
@@ -20,8 +23,12 @@ func Authenticate(addrs []string, creds *Credentials, cert string) (string, erro
 		Addrs:  addrs,
 		CACert: cert,
 	}
+	var client *httpbakery.Client
 	if len(creds.Macaroons) != 0 {
-		info.Macaroons = creds.Macaroons
+		client = httpbakery.NewClient()
+		if err := StoreMacaroons(creds.Macaroons, client.Jar); err != nil {
+			return "", errgo.Notef(err, "cannot store macaroons for logging into controller")
+		}
 	} else if creds.Username != "" && creds.Password != "" {
 		info.Tag = names.NewUserTag(creds.Username)
 		info.Password = creds.Password
@@ -29,8 +36,9 @@ func Authenticate(addrs []string, creds *Credentials, cert string) (string, erro
 		return "", errgo.New("either userpass or macaroons must be provided")
 	}
 	opts := api.DialOpts{
-		RetryDelay: 500 * time.Millisecond,
-		Timeout:    15 * time.Second,
+		RetryDelay:   500 * time.Millisecond,
+		Timeout:      15 * time.Second,
+		BakeryClient: client,
 	}
 	conn, err := apiOpen(info, opts)
 	if err != nil {
@@ -41,9 +49,29 @@ func Authenticate(addrs []string, creds *Credentials, cert string) (string, erro
 
 // Credentials holds credentials for logging into a Juju controller.
 type Credentials struct {
-	Username  string
-	Password  string
-	Macaroons []macaroon.Slice
+	// Username and Password hold traditional Juju credentials for local users.
+	Username string
+	Password string
+	// Macaroons, alternatively, maps cookie URLs to macaroons used for
+	// authenticating as external users. An identity manager URL/token pair is
+	// usually provided.
+	Macaroons map[string]macaroon.Slice
+}
+
+// StoreMacaroons sets the given macaroons as cookies in the given jar.
+func StoreMacaroons(macaroons map[string]macaroon.Slice, jar http.CookieJar) error {
+	for uStr, ms := range macaroons {
+		u, err := url.Parse(uStr)
+		if err != nil {
+			return errgo.Notef(err, "cannot parse macaroon URL %q", uStr)
+		}
+		cookie, err := httpbakery.NewCookie(ms)
+		if err != nil {
+			return errgo.Notef(err, "cannot create cookie for %q", uStr)
+		}
+		jar.SetCookies(u, []*http.Cookie{cookie})
+	}
+	return nil
 }
 
 // apiOpen is defined as a variable for testing.

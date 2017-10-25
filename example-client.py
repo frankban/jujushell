@@ -11,7 +11,7 @@ import websocket
 
 # Copy/paste here the macaroon contents for macaroon based auth, for instance
 # taking the value from the GUI with `JSON.stringify(app.user.model.macaroons)`.
-MACAROONS = ''
+MACAROONS = '{"https://api.jujucharms.com/identity":[{"caveats":[{"cid":"time-before 2017-11-03T13:24:42.301158516Z"},{"cid":"declared username frankban"},{"cid":"http:origin https://jujucharms.com"}],"location":"identity","identifier":"AwoQ2qhT8bi04gkzPNtUgngZCBIgMDVhYWZhZGVkNmMzYzk4MjhlNWZjYmNjODBiYjI1NmUaDgoFbG9naW4SBWxvZ2lu","signature":"4043dcc908bb74d696737b50c0462a9726305ec070ac65c723f3d011bc771a83"}]}'
 # Alternatively set the proper credentials for userpass authentication.
 USERNAME = 'admin'
 PASSWORD = ''
@@ -26,7 +26,7 @@ def main(address):
     client = Client(conn)
     login_request = {'operation': 'login'}
     if MACAROONS:
-        login_request['macaroons'] = [json.loads(MACAROONS)]
+        login_request['macaroons'] = json.loads(MACAROONS)
     else:
         login_request.update({'username': USERNAME, 'password': PASSWORD})
     client.send(login_request)
