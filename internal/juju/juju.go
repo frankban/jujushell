@@ -15,7 +15,7 @@ import (
 // Authenticate logs the current user into the Juju controller at the given
 // addresses with the given credentials. It returns the authenticated user name
 // or an error.
-func Authenticate(addrs []string, creds Credentials, cert string) (string, error) {
+func Authenticate(addrs []string, creds *Credentials, cert string) (string, error) {
 	info := &api.Info{
 		Addrs:  addrs,
 		CACert: cert,

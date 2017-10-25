@@ -15,6 +15,8 @@ import (
 	"github.com/lxc/lxd/shared/api"
 	"golang.org/x/sync/singleflight"
 	"gopkg.in/errgo.v1"
+
+	"github.com/CanonicalLtd/jujushell/internal/juju"
 )
 
 const (
@@ -39,8 +41,8 @@ func Connect() (lxd.ContainerServer, error) {
 // Ensure ensures that an LXD is available for the given username, and returns
 // its address. If the container is not available, one is created using the
 // given image, which is assumed to have juju already installed.
-func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
-	containerName := containerName(user)
+func Ensure(srv lxd.ContainerServer, image, username string, creds *juju.Credentials) (string, error) {
+	containerName := containerName(username)
 
 	_, err, _ := group.Do(containerName, func() (interface{}, error) {
 		// Check for existing container.
@@ -62,7 +64,7 @@ func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
 				return nil, errgo.Mask(err)
 			}
 			// Prepare the Juju data directory in the container.
-			if err = prepareContainer(containerName, srv); err != nil {
+			if err = prepareContainer(containerName, srv, creds); err != nil {
 				return nil, errgo.Mask(err)
 			}
 		}
@@ -90,8 +92,8 @@ func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
 // containerName generates a container name for the given user name.
 // The container name is unique for every user, so that stealing access is
 // never possible.
-func containerName(user string) string {
-	sum := sha1.Sum([]byte(user))
+func containerName(username string) string {
+	sum := sha1.Sum([]byte(username))
 	// Some characters cannot be included in LXD container names.
 	r := strings.NewReplacer(
 		"@", "-",
@@ -99,7 +101,7 @@ func containerName(user string) string {
 		".", "-",
 		"_", "-",
 	)
-	name := fmt.Sprintf("ts-%x-%s", sum, r.Replace(user))
+	name := fmt.Sprintf("ts-%x-%s", sum, r.Replace(username))
 	// LXD containers have a limit of 63 characters for container names, which
 	// seems a bit arbitrary. Anyway, cropping it at 60 should be safe enough.
 	if len(name) > 60 {
@@ -152,8 +154,8 @@ func startContainer(containerName string, srv lxd.ContainerServer) error {
 
 // prepareContainer sets up dynamic container contents, like the Juju data
 // directory which is user specific.
-func prepareContainer(containerName string, srv lxd.ContainerServer) error {
-	if err := pushFile(containerName, srv, jujuCookie, []byte("helloworld")); err != nil {
+func prepareContainer(containerName string, srv lxd.ContainerServer, creds *juju.Credentials) error {
+	if err := writeFile(containerName, srv, jujuCookie, []byte("helloworld")); err != nil {
 		return errgo.Mask(err)
 	}
 	return nil
@@ -184,8 +186,9 @@ var sleep = func(d time.Duration) {
 }
 
 // writeFile creates a file in the container with the given name, at the given
-// path and with the given byte content.
-func pushFile(containerName string, srv lxd.ContainerServer, path string, content []byte) error {
+// path and with the given byte content. If the directory in which the file
+// lives does not exist, it is recursively created.
+func writeFile(containerName string, srv lxd.ContainerServer, path string, content []byte) error {
 	dir := filepath.Dir(path)
 	numSegments := strings.Count(dir, "/")
 	segments := make([]string, numSegments)
