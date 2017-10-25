@@ -4,8 +4,10 @@
 package lxdutils
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -15,8 +17,12 @@ import (
 	"gopkg.in/errgo.v1"
 )
 
-// lxdSocket holds the path to the LXD socket provided by snapped LXD.
-const lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
+const (
+	// lxdSocket holds the path to the LXD socket provided by snapped LXD.
+	lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
+	// jujuCookie holds the path to the Juju cookie file in the container.
+	jujuCookie = "/home/ubuntu/.local/share/juju/cookies/jimm.jujucharms.com.json"
+)
 
 // group holds the namespace used for executing tasks suppressing duplicates.
 var group = &singleflight.Group{}
@@ -55,6 +61,10 @@ func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
 			if err = createContainer(containerName, image, srv); err != nil {
 				return nil, errgo.Mask(err)
 			}
+			// Prepare the Juju data directory in the container.
+			if err = prepareContainer(containerName, srv); err != nil {
+				return nil, errgo.Mask(err)
+			}
 		}
 		if !started {
 			if err = startContainer(containerName, srv); err != nil {
@@ -64,6 +74,8 @@ func Ensure(srv lxd.ContainerServer, user, image string) (string, error) {
 		return nil, nil
 	})
 	if err != nil {
+		// Ignore possible errors occurring while cleaning up failed container.
+		srv.DeleteContainer(containerName)
 		return "", errgo.Mask(err)
 	}
 
@@ -138,6 +150,15 @@ func startContainer(containerName string, srv lxd.ContainerServer) error {
 	return nil
 }
 
+// prepareContainer sets up dynamic container contents, like the Juju data
+// directory which is user specific.
+func prepareContainer(containerName string, srv lxd.ContainerServer) error {
+	if err := pushFile(containerName, srv, jujuCookie, []byte("helloworld")); err != nil {
+		return errgo.Mask(err)
+	}
+	return nil
+}
+
 // containerAddr returns the ip address of the container with the given name.
 // It assumes the container will be up and running in at most 30 seconds.
 func containerAddr(containerName string, srv lxd.ContainerServer) (string, error) {
@@ -160,4 +181,49 @@ func containerAddr(containerName string, srv lxd.ContainerServer) (string, error
 // sleep is defined as a variable for testing purposes.
 var sleep = func(d time.Duration) {
 	time.Sleep(d)
+}
+
+// writeFile creates a file in the container with the given name, at the given
+// path and with the given byte content.
+func pushFile(containerName string, srv lxd.ContainerServer, path string, content []byte) error {
+	dir := filepath.Dir(path)
+	numSegments := strings.Count(dir, "/")
+	segments := make([]string, numSegments)
+	for i := numSegments - 1; i >= 0; i-- {
+		segments[i] = dir
+		dir = filepath.Dir(dir)
+	}
+	var uid, gid int64
+	// Recursively create directories if required.
+	for _, dir := range segments {
+		if _, resp, err := srv.GetContainerFile(containerName, dir); err == nil {
+			// The directory exists.
+			if resp.Type != "directory" {
+				return errgo.Newf("cannot create directory %q: a file with the same name exists in the container", dir)
+			}
+			// If we are traversing the "/home/ubuntu" segment, store the ubuntu
+			// user UID and GID for later use.
+			if dir == "/home/ubuntu" {
+				uid, gid = resp.UID, resp.GID
+			}
+			continue
+		}
+		if err := srv.CreateContainerFile(containerName, dir, lxd.ContainerFileArgs{
+			Type: "directory",
+			UID:  uid,
+			GID:  gid,
+			Mode: 0700,
+		}); err != nil {
+			return errgo.Notef(err, "cannot create directory %q in the container", dir)
+		}
+	}
+	if err := srv.CreateContainerFile(containerName, path, lxd.ContainerFileArgs{
+		Content: bytes.NewReader(content),
+		UID:     uid,
+		GID:     gid,
+		Mode:    0600,
+	}); err != nil {
+		return errgo.Notef(err, "cannot create file %q in the container", path)
+	}
+	return nil
 }
