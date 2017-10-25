@@ -26,7 +26,7 @@ func Authenticate(addrs []string, creds *Credentials, cert string) (string, erro
 	var client *httpbakery.Client
 	if len(creds.Macaroons) != 0 {
 		client = httpbakery.NewClient()
-		if err := StoreMacaroons(creds.Macaroons, client.Jar); err != nil {
+		if err := SetMacaroons(client.Jar, creds.Macaroons); err != nil {
 			return "", errgo.Notef(err, "cannot store macaroons for logging into controller")
 		}
 	} else if creds.Username != "" && creds.Password != "" {
@@ -58,8 +58,8 @@ type Credentials struct {
 	Macaroons map[string]macaroon.Slice
 }
 
-// StoreMacaroons sets the given macaroons as cookies in the given jar.
-func StoreMacaroons(macaroons map[string]macaroon.Slice, jar http.CookieJar) error {
+// SetMacaroons sets the given macaroons as cookies in the given jar.
+func SetMacaroons(jar http.CookieJar, macaroons map[string]macaroon.Slice) error {
 	for uStr, ms := range macaroons {
 		u, err := url.Parse(uStr)
 		if err != nil {

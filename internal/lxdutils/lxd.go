@@ -197,7 +197,7 @@ func prepareContainer(containerName string, srv lxd.ContainerServer, creds *juju
 	if err != nil {
 		return errgo.Notef(err, "cannot create cookie jar")
 	}
-	if err = juju.StoreMacaroons(creds.Macaroons, jar); err != nil {
+	if err = juju.SetMacaroons(jar, creds.Macaroons); err != nil {
 		return errgo.Notef(err, "cannot store macaroons into temporary jar")
 	}
 	if err = jar.Save(); err != nil {
