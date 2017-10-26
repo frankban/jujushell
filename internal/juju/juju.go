@@ -70,7 +70,7 @@ type Credentials struct {
 
 // Info holds information about the Juju controller.
 type Info struct {
-	// Username holds the name of the current local or external user.
+	// User holds the name of the current local or external user.
 	User string
 	// ControllerName holds the name of the controller.
 	ControllerName string

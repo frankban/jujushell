@@ -40,9 +40,9 @@ func Connect() (lxd.ContainerServer, error) {
 	return srv, nil
 }
 
-// Ensure ensures that an LXD is available for the given username, and returns
-// its address. If the container is not available, one is created using the
-// given image, which is assumed to have juju already installed.
+// Ensure ensures that an LXD is available for the given user, and returns its
+// address. If the container is not available, one is created using the given
+// image, which is assumed to have Juju already installed.
 func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	container := newContainer(srv, info.User)
 	defer func() {
