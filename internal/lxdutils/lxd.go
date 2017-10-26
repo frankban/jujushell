@@ -24,10 +24,8 @@ import (
 const (
 	// lxdSocket holds the path to the LXD socket provided by snapped LXD.
 	lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
-	// controllerName holds the name assigned locally to the Juju controller.
-	controllerName = "ctrl"
-	// jujuCookiePath holds the path to the Juju cookie file in the container.
-	jujuCookiePath = "/home/ubuntu/.local/share/juju/cookies/" + controllerName + ".json"
+	// jujuDataDir holds the directory used by Juju for its data.
+	jujuDataDir = "/home/ubuntu/.local/share/juju"
 )
 
 // group holds the namespace used for executing tasks suppressing duplicates.
@@ -45,8 +43,8 @@ func Connect() (lxd.ContainerServer, error) {
 // Ensure ensures that an LXD is available for the given username, and returns
 // its address. If the container is not available, one is created using the
 // given image, which is assumed to have juju already installed.
-func Ensure(srv lxd.ContainerServer, image, username string, creds *juju.Credentials) (addr string, err error) {
-	container := newContainer(srv, username)
+func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+	container := newContainer(srv, info.User)
 	defer func() {
 		// If anything went wrong, just try to clean things up.
 		if err != nil {
@@ -93,7 +91,7 @@ func Ensure(srv lxd.ContainerServer, image, username string, creds *juju.Credent
 
 	// Prepare the Juju data directory in the container. This is done every
 	// time, even if the container already exists, in order to update creds.
-	if err = container.prepare(creds); err != nil {
+	if err = container.prepare(info, creds); err != nil {
 		return "", errgo.Mask(err)
 	}
 	return addr, nil
@@ -152,7 +150,7 @@ func (c *container) delete() error {
 
 // prepare sets up dynamic container contents, like the Juju data directory
 // which is user specific.
-func (c *container) prepare(creds *juju.Credentials) error {
+func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 	// Save authentication cookies in the container.
 	// TODO frankban: handle userpass authentication.
 	jar, err := cookiejar.New(&cookiejar.Options{
@@ -164,19 +162,25 @@ func (c *container) prepare(creds *juju.Credentials) error {
 	if err = juju.SetMacaroons(jar, creds.Macaroons); err != nil {
 		return errgo.Notef(err, "cannot store macaroons into temporary jar")
 	}
-	// MarshalJSON never fails.
-	data, _ := jar.MarshalJSON()
-	if err = c.writeFile(jujuCookiePath, data); err != nil {
-		return errgo.Notef(err, "cannot move cookie file to container %q", c.name)
+	data, _ := jar.MarshalJSON() // MarshalJSON never fails.
+	path := filepath.Join(jujuDataDir, "cookies", info.ControllerName+".json")
+	if err = c.writeFile(path, data); err != nil {
+		return errgo.Notef(err, "cannot create cookie file in container %q", c.name)
+	}
+
+	// Prepare and save the controllers.yaml file in the container.
+	data, err = juju.MarshalYAML(info)
+	if err != nil {
+		return errgo.Notef(err, "cannot marshal Juju information")
+	}
+	path = filepath.Join(jujuDataDir, "controllers.yaml")
+	if err = c.writeFile(path, data); err != nil {
+		return errgo.Notef(err, "cannot create controllers file in container %q", c.name)
 	}
 
 	// Run "juju login" in the container.
-	// TODO frankban: propagate the proper controller address, without
-	// hardcoding "jimm.jujucharms.com".
-	addr := "jimm.jujucharms.com"
-	cmd := []string{"su", "-", "ubuntu", "-c", fmt.Sprintf("juju login %s -c %s", addr, controllerName)}
-	if err = c.exec(cmd...); err != nil {
-		return errgo.Notef(err, "cannot log into juju in container %q", c.name)
+	if err = c.exec("su", "-", "ubuntu", "-c", "juju login -c "+info.ControllerName); err != nil {
+		return errgo.Notef(err, "cannot log into Juju in container %q", c.name)
 	}
 	return nil
 }
@@ -233,6 +237,7 @@ func (c *container) exec(cmd ...string) error {
 		Command:   cmd,
 		WaitForWS: true,
 	}
+	// TODO frankban: check that the cmd succeded, maybe by looking at stderr?
 	args := lxd.ContainerExecArgs{
 		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
