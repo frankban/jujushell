@@ -10,8 +10,9 @@ import sys
 import websocket
 
 # Copy/paste here the macaroon contents for macaroon based auth, for instance
-# taking the value from the GUI with `JSON.stringify(app.user.model.macaroons)`.
-MACAROONS = '{"https://api.jujucharms.com/identity":[{"caveats":[{"cid":"time-before 2017-11-03T13:24:42.301158516Z"},{"cid":"declared username frankban"},{"cid":"http:origin https://jujucharms.com"}],"location":"identity","identifier":"AwoQ2qhT8bi04gkzPNtUgngZCBIgMDVhYWZhZGVkNmMzYzk4MjhlNWZjYmNjODBiYjI1NmUaDgoFbG9naW4SBWxvZ2lu","signature":"4043dcc908bb74d696737b50c0462a9726305ec070ac65c723f3d011bc771a83"}]}'
+# taking the value from the GUI with the following command:
+# `JSON.stringify({'https://api.jujucharms.com/identity': JSON.parse(atob(localStorage.identity))})`.
+MACAROONS = ''
 # Alternatively set the proper credentials for userpass authentication.
 USERNAME = 'admin'
 PASSWORD = ''
