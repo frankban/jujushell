@@ -19,8 +19,8 @@ import (
 )
 
 // Authenticate logs the current user into the Juju controller at the given
-// addresses with the given credentials. It returns the authenticated user name
-// or an error.
+// addresses with the given credentials. It returns information about the Juju
+// controller or an error.
 func Authenticate(addrs []string, creds *Credentials, cert string) (*Info, error) {
 	info := &api.Info{
 		Addrs:  addrs,
