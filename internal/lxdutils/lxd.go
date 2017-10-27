@@ -152,28 +152,31 @@ func (c *container) delete() error {
 // which is user specific.
 func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 	// Save authentication cookies in the container.
-	// TODO frankban: handle userpass authentication.
-	jar, err := cookiejar.New(&cookiejar.Options{
-		NoPersist: true,
-	})
-	if err != nil {
-		return errgo.Notef(err, "cannot create cookie jar")
-	}
-	if err = juju.SetMacaroons(jar, creds.Macaroons); err != nil {
-		return errgo.Notef(err, "cannot store macaroons into temporary jar")
-	}
-	data, _ := jar.MarshalJSON() // MarshalJSON never fails.
-	path := filepath.Join(jujuDataDir, "cookies", info.ControllerName+".json")
-	if err = c.writeFile(path, data); err != nil {
-		return errgo.Notef(err, "cannot create cookie file in container %q", c.name)
+	if len(creds.Macaroons) != 0 {
+		jar, err := cookiejar.New(&cookiejar.Options{
+			NoPersist: true,
+		})
+		if err != nil {
+			return errgo.Notef(err, "cannot create cookie jar")
+		}
+		if err = juju.SetMacaroons(jar, creds.Macaroons); err != nil {
+			return errgo.Notef(err, "cannot set macaroons in jar")
+		}
+		data, _ := jar.MarshalJSON() // MarshalJSON never fails.
+		path := filepath.Join(jujuDataDir, "cookies", info.ControllerName+".json")
+		if err = c.writeFile(path, data); err != nil {
+			return errgo.Notef(err, "cannot create cookie file in container %q", c.name)
+		}
+	} else {
+		// TODO frankban: handle userpass authentication.
 	}
 
 	// Prepare and save the controllers.yaml file in the container.
-	data, err = juju.MarshalYAML(info)
+	data, err := juju.MarshalYAML(info)
 	if err != nil {
 		return errgo.Notef(err, "cannot marshal Juju information")
 	}
-	path = filepath.Join(jujuDataDir, "controllers.yaml")
+	path := filepath.Join(jujuDataDir, "controllers.yaml")
 	if err = c.writeFile(path, data); err != nil {
 		return errgo.Notef(err, "cannot create controllers file in container %q", c.name)
 	}
@@ -245,7 +248,7 @@ func (c *container) exec(cmd ...string) error {
 	}
 	op, err := c.srv.ExecContainer(c.name, req, &args)
 	if err != nil {
-		return errgo.Notef(err, "cannot execute command %v", cmd)
+		return errgo.Notef(err, "cannot execute command %q", strings.Join(cmd, " "))
 	}
 	if err = op.Wait(); err != nil {
 		return errgo.Notef(err, "execute command operation failed")
