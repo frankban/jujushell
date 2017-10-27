@@ -5,6 +5,7 @@ package lxdutils_test
 
 import (
 	"errors"
+	"io"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 
+	"github.com/CanonicalLtd/jujushell/internal/juju"
 	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
 )
 
@@ -309,7 +311,13 @@ func TestEnsure(t *testing.T) {
 			restore := patchSleep(s.sleep)
 			defer restore()
 
-			addr, err := lxdutils.Ensure(test.srv, test.user, test.image)
+			creds := &juju.Credentials{
+				Username: test.user,
+			}
+			info := &juju.Info{
+				User: test.user,
+			}
+			addr, err := lxdutils.Ensure(test.srv, test.image, info, creds)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				c.Assert(addr, qt.Equals, "")
@@ -345,6 +353,10 @@ type srv struct {
 	getStateName      string
 	getStateAddresses []api.ContainerStateNetworkAddress
 	getStateError     error
+
+	deleteName    string
+	deleteError   error
+	deleteOpError error
 }
 
 func (s *srv) GetContainers() ([]api.Container, error) {
@@ -380,6 +392,31 @@ func (s *srv) GetContainerState(name string) (*api.ContainerState, string, error
 			},
 		},
 	}, "", nil
+}
+
+func (s *srv) GetContainerFile(name, path string) (io.ReadCloser, *lxd.ContainerFileResponse, error) {
+	resp := &lxd.ContainerFileResponse{
+		UID:  10000,
+		GID:  10000,
+		Type: "Directory",
+	}
+	return nil, resp, nil
+}
+
+func (s *srv) CreateContainerFile(name, path string, args lxd.ContainerFileArgs) error {
+	return nil
+}
+
+func (s *srv) ExecContainer(name string, req api.ContainerExecPost, args *lxd.ContainerExecArgs) (*lxd.Operation, error) {
+	return nil, nil
+}
+
+func (s *srv) DeleteContainer(name string) (*lxd.Operation, error) {
+	s.deleteName = name
+	if s.deleteError != nil {
+		return nil, s.deleteError
+	}
+	return newOp(s.deleteOpError), nil
 }
 
 // newOp creates and return a new LXD operation whose Wait method returns the

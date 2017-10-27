@@ -25,7 +25,7 @@ var authenticateTests = []struct {
 	about            string
 	username         string
 	password         string
-	macaroons        []macaroon.Slice
+	macaroons        map[string]macaroon.Slice
 	apiOpenUsername  string
 	apiOpenError     string
 	expectedUsername string
@@ -37,8 +37,10 @@ var authenticateTests = []struct {
 	apiOpenUsername:  "rose",
 	expectedUsername: "rose",
 }, {
-	about:            "macaroon authentication",
-	macaroons:        []macaroon.Slice{{mustNewMacaroon("m1")}},
+	about: "macaroon authentication",
+	macaroons: map[string]macaroon.Slice{
+		"test": macaroon.Slice{mustNewMacaroon("m1")},
+	},
 	apiOpenUsername:  "rose",
 	expectedUsername: "rose",
 }, {
@@ -67,14 +69,14 @@ func TestAuthenticate(t *testing.T) {
 			}
 			expectedInfo := &api.Info{
 				Password:  test.password,
-				Macaroons: test.macaroons,
+				Macaroons: []macaroon.Slice{test.macaroons["test"]},
 			}
 			if test.username != "" {
 				expectedInfo.Tag = names.NewUserTag(test.username)
 			}
 			restore := patchAPIOpen(c, conn, apiOpenError, expectedInfo)
 			defer restore()
-			username, err := juju.Authenticate(addrs, juju.Credentials{
+			username, err := juju.Authenticate(addrs, &juju.Credentials{
 				Username:  test.username,
 				Password:  test.password,
 				Macaroons: test.macaroons,
