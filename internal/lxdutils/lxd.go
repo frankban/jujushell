@@ -151,8 +151,8 @@ func (c *container) delete() error {
 // prepare sets up dynamic container contents, like the Juju data directory
 // which is user specific.
 func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
-	// Save authentication cookies in the container.
 	if len(creds.Macaroons) != 0 {
+		// Save authentication cookies in the container.
 		jar, err := cookiejar.New(&cookiejar.Options{
 			NoPersist: true,
 		})
@@ -168,13 +168,21 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 			return errgo.Notef(err, "cannot create cookie file in container %q", c.name)
 		}
 	} else {
-		// TODO frankban: handle userpass authentication.
+		// Prepare and save the accounts.yaml file in the container.
+		data, err := juju.MarshalAccounts(info.ControllerName, creds.Username, creds.Password)
+		if err != nil {
+			return errgo.Notef(err, "cannot marshal Juju accounts")
+		}
+		path := filepath.Join(jujuDataDir, "accounts.yaml")
+		if err = c.writeFile(path, data); err != nil {
+			return errgo.Notef(err, "cannot create accounts file in container %q", c.name)
+		}
 	}
 
 	// Prepare and save the controllers.yaml file in the container.
-	data, err := juju.MarshalYAML(info)
+	data, err := juju.MarshalControllers(info)
 	if err != nil {
-		return errgo.Notef(err, "cannot marshal Juju information")
+		return errgo.Notef(err, "cannot marshal Juju credentials")
 	}
 	path := filepath.Join(jujuDataDir, "controllers.yaml")
 	if err = c.writeFile(path, data); err != nil {

@@ -177,7 +177,25 @@ func TestSetMacaroons(t *testing.T) {
 	}
 }
 
-func TestMarshalYAML(t *testing.T) {
+func TestMarshalAccounts(t *testing.T) {
+	c := qt.New(t)
+	expectedAccounts := map[string]map[string]jujuclient.AccountDetails{
+		"controllers": {
+			"my-controller": jujuclient.AccountDetails{
+				User:     "who",
+				Password: "secret!",
+			},
+		},
+	}
+	data, err := juju.MarshalAccounts("my-controller", "who", "secret!")
+	c.Assert(err, qt.Equals, nil)
+	var accounts map[string]map[string]jujuclient.AccountDetails
+	err = yaml.Unmarshal(data, &accounts)
+	c.Assert(err, qt.Equals, nil)
+	c.Assert(accounts, qt.DeepEquals, expectedAccounts)
+}
+
+func TestMarshalControllers(t *testing.T) {
 	c := qt.New(t)
 	info := &juju.Info{
 		User:           "rose",
@@ -196,7 +214,7 @@ func TestMarshalYAML(t *testing.T) {
 		},
 		CurrentController: "ctrl",
 	}
-	data, err := juju.MarshalYAML(info)
+	data, err := juju.MarshalControllers(info)
 	c.Assert(err, qt.Equals, nil)
 	var controllers jujuclient.Controllers
 	err = yaml.Unmarshal(data, &controllers)

@@ -815,12 +815,19 @@ var internalEnsureTests = []struct {
 	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 	expectedGetFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 	expectedGetFilePaths: []string{
+		// Path to the accounts.yaml dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
 		// Path to the controllers.yaml dir.
 		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
 	},
 	expectedCreateFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/controllers.yaml"},
+	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/accounts.yaml", "/home/ubuntu/.local/share/juju/controllers.yaml"},
 	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}, {
 		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
 		UID:     42,
 		GID:     47,

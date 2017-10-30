@@ -98,9 +98,29 @@ func SetMacaroons(jar http.CookieJar, macaroons map[string]macaroon.Slice) error
 	return nil
 }
 
-// MarshalYAML encodes the given controller information so that it is suitable
-// for being used as the content of the Juju controllers.yaml file.
-func MarshalYAML(info *Info) ([]byte, error) {
+// MarshalAccounts encodes the given credentials information so that they are
+// suitable for being used as the content of the Juju accounts.yaml file.
+func MarshalAccounts(controller, user, password string) ([]byte, error) {
+	accounts := struct {
+		Controllers map[string]jujuclient.AccountDetails `yaml:"controllers"`
+	}{
+		Controllers: map[string]jujuclient.AccountDetails{
+			controller: {
+				User:     user,
+				Password: password,
+			},
+		},
+	}
+	data, err := yaml.Marshal(accounts)
+	if err != nil {
+		return nil, errgo.Notef(err, "cannot marshal accounts")
+	}
+	return data, nil
+}
+
+// MarshalControllers encodes the given controller information so that it is
+// suitable for being used as the content of the Juju controllers.yaml file.
+func MarshalControllers(info *Info) ([]byte, error) {
 	cs := jujuclient.Controllers{
 		Controllers: map[string]jujuclient.ControllerDetails{
 			info.ControllerName: {
