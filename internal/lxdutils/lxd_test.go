@@ -131,6 +131,7 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error in the operation of stopping the container",
 	srv: &srv{
@@ -154,6 +155,7 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error starting the container",
 	srv: &srv{

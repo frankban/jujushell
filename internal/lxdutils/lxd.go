@@ -139,9 +139,7 @@ func (c *container) start() error {
 
 // delete stops and removes the container.
 func (c *container) delete() error {
-	if err := c.updateState("stop"); err != nil {
-		return errgo.Notef(err, "cannot stop container %q", c.name)
-	}
+	c.updateState("stop")
 	if _, err := c.srv.DeleteContainer(c.name); err != nil {
 		return errgo.Notef(err, "cannot delete container %q", c.name)
 	}
