@@ -18,15 +18,15 @@ import (
 )
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, imageName string) error {
+func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, image string) error {
 	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", serveWebSocket(jujuAddrs, jujuCert, imageName))
+	mux.Handle("/ws/", serveWebSocket(jujuAddrs, jujuCert, image))
 	mux.HandleFunc("/status/", statusHandler)
 	return nil
 }
 
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(jujuAddrs []string, jujuCert, imageName string) http.Handler {
+func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
 	upgrader := websocket.Upgrader{
 		// TODO: only allow request from the controller addresses.
 		CheckOrigin: func(*http.Request) bool {
@@ -47,20 +47,20 @@ func serveWebSocket(jujuAddrs []string, jujuCert, imageName string) http.Handler
 		defer conn.Close()
 
 		// Start serving requests.
-		username, err := handleLogin(conn, jujuAddrs, jujuCert)
+		info, creds, err := handleLogin(conn, jujuAddrs, jujuCert)
 		if err != nil {
 			log.Debugw("cannot authenticate the user", "err", err)
 			return
 		}
-		log.Debugw("user authenticated", "user", username)
-		addr, err := handleStart(conn, username, imageName)
+		log.Debugw("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
+		addr, err := handleStart(conn, image, info, creds)
 		if err != nil {
-			log.Debugw("cannot start user session", "user", username, "err", err)
+			log.Debugw("cannot start user session", "user", info.User, "err", err)
 			return
 		}
-		log.Debugw("session started", "user", username, "address", addr)
+		log.Debugw("session started", "user", info.User, "address", addr)
 		if err = handleSession(conn, addr); err != nil {
-			log.Debugw("session closed", "user", username, "address", addr, "err", err)
+			log.Debugw("session closed", "user", info.User, "address", addr, "err", err)
 			return
 		}
 		log.Infow("closing WebSocket connection", "remote-addr", r.RemoteAddr)
@@ -72,23 +72,24 @@ func serveWebSocket(jujuAddrs []string, jujuCert, imageName string) http.Handler
 // Example request/response:
 //     --> {"operation": "login", "username": "admin", "password": "secret"}
 //     <-- {"code": "ok", "message": "logged in as \"admin\""}
-func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (username string, err error) {
+func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (info *juju.Info, creds *juju.Credentials, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return nil, nil, writeError(conn, errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpLogin {
-		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
+		return nil, nil, writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
 	}
-	username, err = juju.Authenticate(jujuAddrs, juju.Credentials{
+	creds = &juju.Credentials{
 		Username:  req.Username,
 		Password:  req.Password,
 		Macaroons: req.Macaroons,
-	}, jujuCert)
-	if err != nil {
-		return "", writeError(conn, errgo.Notef(err, "cannot log into juju"))
 	}
-	return username, writeOK(conn, "logged in as %q", username)
+	info, err = juju.Authenticate(jujuAddrs, creds, jujuCert)
+	if err != nil {
+		return nil, nil, writeError(conn, errgo.Notef(err, "cannot log into juju"))
+	}
+	return info, creds, writeOK(conn, "logged in as %q", info.User)
 }
 
 // handleStart ensures an LXD is available for the given username, by checking
@@ -96,7 +97,7 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (use
 // the provided image name. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn *websocket.Conn, username, imageName string) (addr string, err error) {
+func handleStart(conn *websocket.Conn, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
 		return "", writeError(conn, errgo.Mask(err))
@@ -108,7 +109,7 @@ func handleStart(conn *websocket.Conn, username, imageName string) (addr string,
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
-	addr, err = lxdutils.Ensure(lxdsrv, username, imageName)
+	addr, err = lxdutils.Ensure(lxdsrv, image, info, creds)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}

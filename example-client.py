@@ -10,7 +10,8 @@ import sys
 import websocket
 
 # Copy/paste here the macaroon contents for macaroon based auth, for instance
-# taking the value from the GUI with `JSON.stringify(app.user.model.macaroons)`.
+# taking the value from the GUI with the following command:
+# `JSON.stringify({'https://api.jujucharms.com/identity': JSON.parse(atob(localStorage.identity))})`.
 MACAROONS = ''
 # Alternatively set the proper credentials for userpass authentication.
 USERNAME = 'admin'
@@ -26,7 +27,7 @@ def main(address):
     client = Client(conn)
     login_request = {'operation': 'login'}
     if MACAROONS:
-        login_request['macaroons'] = [json.loads(MACAROONS)]
+        login_request['macaroons'] = json.loads(MACAROONS)
     else:
         login_request.update({'username': USERNAME, 'password': PASSWORD})
     client.send(login_request)

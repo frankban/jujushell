@@ -9,11 +9,13 @@ import macaroon "gopkg.in/macaroon.v1"
 type Login struct {
 	// Operation holds the requested operation.
 	Operation Operation `json:"operation"`
-	// Username and Password hold traditional userpass information.
+	// Username and Password hold traditional Juju credentials for local users.
 	Username string `json:"username"`
 	Password string `json:"password"`
-	// Macaroons holds the macaroons for logging in using an external identity.
-	Macaroons []macaroon.Slice `json:"macaroons"`
+	// Macaroons, alternatively, maps cookie URLs to macaroons used for
+	// authenticating as external users. An identity manager URL/token pair is
+	// usually provided.
+	Macaroons map[string]macaroon.Slice `json:"macaroons"`
 }
 
 // Start holds parameters for making a start request.
