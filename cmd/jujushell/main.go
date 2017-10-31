@@ -42,10 +42,8 @@ func serve(configPath string) error {
 	if err != nil {
 		return errgo.Notef(err, "cannot read configuration file")
 	}
-	if err := logging.Setup(conf.LogLevel); err != nil {
-		return errgo.Notef(err, "cannot set up logging")
-	}
-	log := logging.Logger()
+	log := logging.Log()
+	log.SetLevel(conf.LogLevel)
 	defer log.Sync()
 	log.Infow("starting the server", "log level", conf.LogLevel, "port", conf.Port)
 	handler, err := jujushell.NewServer(jujushell.Params{
