@@ -17,6 +17,8 @@ import (
 	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
 )
 
+var log = logging.Log()
+
 // Register registers the API handlers in the given mux.
 func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, image string) error {
 	// TODO: validate jujuAddrs.
@@ -36,7 +38,6 @@ func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
 		WriteBufferSize: webSocketBufferSize,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log := logging.Logger()
 		// Upgrade the HTTP connection.
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -49,18 +50,18 @@ func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
 		// Start serving requests.
 		info, creds, err := handleLogin(conn, jujuAddrs, jujuCert)
 		if err != nil {
-			log.Debugw("cannot authenticate the user", "err", err)
+			log.Infow("cannot authenticate the user", "err", err)
 			return
 		}
-		log.Debugw("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
+		log.Infow("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
 		addr, err := handleStart(conn, image, info, creds)
 		if err != nil {
-			log.Debugw("cannot start user session", "user", info.User, "err", err)
+			log.Infow("cannot start user session", "user", info.User, "err", err)
 			return
 		}
-		log.Debugw("session started", "user", info.User, "address", addr)
+		log.Infow("session started", "user", info.User, "address", addr)
 		if err = handleSession(conn, addr); err != nil {
-			log.Debugw("session closed", "user", info.User, "address", addr, "err", err)
+			log.Infow("session closed", "user", info.User, "address", addr, "err", err)
 			return
 		}
 		log.Infow("closing WebSocket connection", "remote-addr", r.RemoteAddr)
@@ -85,6 +86,7 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (inf
 		Password:  req.Password,
 		Macaroons: req.Macaroons,
 	}
+	log.Debugw("authenticating to the controller", "addresses", jujuAddrs)
 	info, err = juju.Authenticate(jujuAddrs, creds, jujuCert)
 	if err != nil {
 		return nil, nil, writeError(conn, errgo.Notef(err, "cannot log into juju"))
@@ -105,15 +107,18 @@ func handleStart(conn *websocket.Conn, image string, info *juju.Info, creds *juj
 	if req.Operation != apiparams.OpStart {
 		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
+	log.Debugw("connecting to the LXD server")
 	lxdsrv, err := lxdutils.Connect()
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
+	log.Debugw("setting up the LXD instance", "image", image)
 	addr, err = lxdutils.Ensure(lxdsrv, image, info, creds)
 	if err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
 	url := fmt.Sprintf("http://%s:%d/status", addr, termserverPort)
+	log.Debugw("waiting for the internal shell service to be ready", "url", url)
 	if err = waitReady(url); err != nil {
 		return "", writeError(conn, errgo.Mask(err))
 	}
@@ -126,10 +131,12 @@ func handleSession(conn *websocket.Conn, addr string) error {
 	// The path must reflect what used by the Terminado service which is
 	// running in the LXD container.
 	url := fmt.Sprintf("ws://%s:%d/websocket", addr, termserverPort)
+	log.Debugw("connecting to internal shell service", "url", url)
 	lxcconn, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		return errgo.Notef(err, "cannot dial %s", url)
 	}
+	log.Debugw("starting the proxy")
 	return errgo.Mask(wsproxy.Copy(conn, lxcconn))
 }
 
@@ -153,6 +160,7 @@ func writeResponse(conn *websocket.Conn, code apiparams.ResponseCode, message st
 		Code:    code,
 		Message: message,
 	}
+	log.Debugw("sending response", "code", code, "message", message)
 	if err := conn.WriteJSON(resp); err != nil {
 		return errgo.Notef(err, "cannot write WebSocket response")
 	}
