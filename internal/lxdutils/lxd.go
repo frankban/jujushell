@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CanonicalLtd/jujushell/internal/logging"
 	cookiejar "github.com/juju/persistent-cookiejar"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
@@ -20,6 +19,7 @@ import (
 	"gopkg.in/errgo.v1"
 
 	"github.com/CanonicalLtd/jujushell/internal/juju"
+	"github.com/CanonicalLtd/jujushell/internal/logging"
 )
 
 const (
@@ -29,10 +29,11 @@ const (
 	jujuDataDir = "/home/ubuntu/.local/share/juju"
 )
 
-// group holds the namespace used for executing tasks suppressing duplicates.
-var group = &singleflight.Group{}
-
-var log = logging.Log()
+var (
+	// group holds the namespace used for executing tasks suppressing duplicates.
+	group = &singleflight.Group{}
+	log   = logging.Log()
+)
 
 // Connect establishes a connection to the local snapped LXD server.
 func Connect() (lxd.ContainerServer, error) {
