@@ -19,6 +19,7 @@ import (
 	"gopkg.in/errgo.v1"
 
 	"github.com/CanonicalLtd/jujushell/internal/juju"
+	"github.com/CanonicalLtd/jujushell/internal/logging"
 )
 
 const (
@@ -28,8 +29,11 @@ const (
 	jujuDataDir = "/home/ubuntu/.local/share/juju"
 )
 
-// group holds the namespace used for executing tasks suppressing duplicates.
-var group = &singleflight.Group{}
+var (
+	// group holds the namespace used for executing tasks suppressing duplicates.
+	group = &singleflight.Group{}
+	log   = logging.Log()
+)
 
 // Connect establishes a connection to the local snapped LXD server.
 func Connect() (lxd.ContainerServer, error) {
@@ -68,11 +72,13 @@ func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.
 		}
 		// Create and start the container if required.
 		if !created {
+			log.Debugw("creating container", "container", container.name)
 			if err = container.create(image); err != nil {
 				return nil, errgo.Mask(err)
 			}
 		}
 		if !started {
+			log.Debugw("starting container", "container", container.name)
 			if err = container.start(); err != nil {
 				return nil, errgo.Mask(err)
 			}
@@ -91,6 +97,7 @@ func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.
 
 	// Prepare the Juju data directory in the container. This is done every
 	// time, even if the container already exists, in order to update creds.
+	log.Debugw("preparing juju", "container", container.name)
 	if err = container.prepare(info, creds); err != nil {
 		return "", errgo.Mask(err)
 	}
@@ -160,6 +167,7 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 		if err = juju.SetMacaroons(jar, creds.Macaroons); err != nil {
 			return errgo.Notef(err, "cannot set macaroons in jar")
 		}
+		log.Debugw("writing macaroons to cookie jar", "container", c.name)
 		data, _ := jar.MarshalJSON() // MarshalJSON never fails.
 		path := filepath.Join(jujuDataDir, "cookies", info.ControllerName+".json")
 		if err = c.writeFile(path, data); err != nil {
@@ -171,6 +179,7 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 		if err != nil {
 			return errgo.Notef(err, "cannot marshal Juju accounts")
 		}
+		log.Debugw("writing accounts.yaml", "container", c.name)
 		path := filepath.Join(jujuDataDir, "accounts.yaml")
 		if err = c.writeFile(path, data); err != nil {
 			return errgo.Notef(err, "cannot create accounts file in container %q", c.name)
@@ -182,12 +191,14 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 	if err != nil {
 		return errgo.Notef(err, "cannot marshal Juju credentials")
 	}
+	log.Debugw("writing controllers.yaml", "container", c.name)
 	path := filepath.Join(jujuDataDir, "controllers.yaml")
 	if err = c.writeFile(path, data); err != nil {
 		return errgo.Notef(err, "cannot create controllers file in container %q", c.name)
 	}
 
 	// Run "juju login" in the container.
+	log.Debugw("logging into Juju", "container", c.name)
 	if err = c.exec("su", "-", "ubuntu", "-c", "juju login -c "+info.ControllerName); err != nil {
 		return errgo.Notef(err, "cannot log into Juju in container %q", c.name)
 	}
