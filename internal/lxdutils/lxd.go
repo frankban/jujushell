@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"fmt"
-	"os"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,11 +29,7 @@ const (
 	jujuDataDir = "/home/ubuntu/.local/share/juju"
 )
 
-var (
-	// group holds the namespace used for executing tasks suppressing duplicates.
-	group = &singleflight.Group{}
-	log   = logging.Log()
-)
+var log = logging.Log()
 
 // Connect establishes a connection to the local snapped LXD server.
 func Connect() (lxd.ContainerServer, error) {
@@ -56,11 +52,11 @@ func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.
 		}
 	}()
 
-	_, err, _ = group.Do(container.name, func() (interface{}, error) {
+	err = singleFlight(container.name, func() error {
 		// Check for existing container.
 		cs, err := srv.GetContainers()
 		if err != nil {
-			return nil, errgo.Notef(err, "cannot get containers")
+			return errgo.Notef(err, "cannot get containers")
 		}
 		var created, started bool
 		for _, c := range cs {
@@ -74,16 +70,16 @@ func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.
 		if !created {
 			log.Debugw("creating container", "container", container.name)
 			if err = container.create(image); err != nil {
-				return nil, errgo.Mask(err)
+				return errgo.Mask(err)
 			}
 		}
 		if !started {
 			log.Debugw("starting container", "container", container.name)
 			if err = container.start(); err != nil {
-				return nil, errgo.Mask(err)
+				return errgo.Mask(err)
 			}
 		}
-		return nil, nil
+		return nil
 	})
 	if err != nil {
 		return "", errgo.Mask(err)
@@ -146,6 +142,7 @@ func (c *container) start() error {
 
 // delete stops and removes the container.
 func (c *container) delete() error {
+	// Ignore stop errors as we'll try to delete the container anyway.
 	c.updateState("stop")
 	if _, err := c.srv.DeleteContainer(c.name); err != nil {
 		return errgo.Notef(err, "cannot delete container %q", c.name)
@@ -202,6 +199,7 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 	if err = c.exec("su", "-", "ubuntu", "-c", "juju login -c "+info.ControllerName); err != nil {
 		return errgo.Notef(err, "cannot log into Juju in container %q", c.name)
 	}
+
 	return nil
 }
 
@@ -209,38 +207,11 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 // given data. If the directory in which the file lives does not exist, it is
 // recursively created.
 func (c *container) writeFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	numSegments := strings.Count(dir, "/")
-	segments := make([]string, numSegments)
-	for i := numSegments - 1; i >= 0; i-- {
-		segments[i] = dir
-		dir = filepath.Dir(dir)
+	uid, gid, err := c.mkdir(filepath.Dir(path))
+	if err != nil {
+		return errgo.Mask(err)
 	}
-	var uid, gid int64
-	// Recursively create directories if required.
-	for _, dir := range segments {
-		if _, resp, err := c.srv.GetContainerFile(c.name, dir); err == nil {
-			// The directory exists.
-			if resp.Type != "directory" {
-				return errgo.Newf("cannot create directory %q: a file with the same name exists in the container", dir)
-			}
-			// If we are traversing the "/home/ubuntu" segment, store the ubuntu
-			// user UID and GID for later use.
-			if dir == "/home/ubuntu" {
-				uid, gid = resp.UID, resp.GID
-			}
-			continue
-		}
-		if err := c.srv.CreateContainerFile(c.name, dir, lxd.ContainerFileArgs{
-			Type: "directory",
-			UID:  uid,
-			GID:  gid,
-			Mode: 0700,
-		}); err != nil {
-			return errgo.Notef(err, "cannot create directory %q in the container", dir)
-		}
-	}
-	if err := c.srv.CreateContainerFile(c.name, path, lxd.ContainerFileArgs{
+	if err = c.srv.CreateContainerFile(c.name, path, lxd.ContainerFileArgs{
 		Content: bytes.NewReader(data),
 		UID:     uid,
 		GID:     gid,
@@ -251,26 +222,85 @@ func (c *container) writeFile(path string, data []byte) error {
 	return nil
 }
 
+// mkdir creates (if it does not exist) a directory in the container at the
+// given path, and returns its uid, and gid.
+func (c *container) mkdir(path string) (uid, gid int64, err error) {
+	// idInfo holds user and group id information.
+	type idInfo struct {
+		uid, gid int64
+	}
+	// Creating the directory structure is done as a single flight.
+	result, err, _ := group.Do(c.name+":"+path, func() (interface{}, error) {
+		numSegments := strings.Count(path, "/")
+		segments := make([]string, numSegments)
+		for i := numSegments - 1; i >= 0; i-- {
+			segments[i] = path
+			path = filepath.Dir(path)
+		}
+		var ids idInfo
+		// Recursively create directories if required.
+		for _, dir := range segments {
+			if _, resp, err := c.srv.GetContainerFile(c.name, dir); err == nil {
+				// The directory exists.
+				if resp.Type != "directory" {
+					return nil, errgo.Newf("cannot create directory %q: a file with the same name exists in the container", dir)
+				}
+				// Store the uid and gid of the parent directory for later use.
+				ids.uid, ids.gid = resp.UID, resp.GID
+				continue
+			}
+			if err := c.srv.CreateContainerFile(c.name, dir, lxd.ContainerFileArgs{
+				Type: "directory",
+				UID:  ids.uid,
+				GID:  ids.gid,
+				Mode: 0700,
+			}); err != nil {
+				return nil, errgo.Notef(err, "cannot create directory %q in the container", dir)
+			}
+		}
+		return &ids, nil
+	})
+	if err != nil {
+		return 0, 0, errgo.Mask(err)
+	}
+	ids := result.(*idInfo)
+	return ids.uid, ids.gid, nil
+}
+
 // exec executes the given command in the container.
 func (c *container) exec(cmd ...string) error {
-	req := api.ContainerExecPost{
-		Command:   cmd,
-		WaitForWS: true,
-	}
-	// TODO frankban: check that the cmd succeded, maybe by looking at stderr?
-	args := lxd.ContainerExecArgs{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}
-	op, err := c.srv.ExecContainer(c.name, req, &args)
-	if err != nil {
-		return errgo.Notef(err, "cannot execute command %q", strings.Join(cmd, " "))
-	}
-	if err = op.Wait(); err != nil {
-		return errgo.Notef(err, "execute command operation failed")
-	}
-	return nil
+	cmdstr := strings.Join(cmd, " ")
+	// Do not execute the same command on the same container multiple times in
+	// parallel.
+	err := singleFlight(c.name+":"+cmdstr, func() error {
+		req := api.ContainerExecPost{
+			Command:   cmd,
+			WaitForWS: true,
+		}
+		var stdin, stdout, stderr bytes.Buffer
+		args := lxd.ContainerExecArgs{
+			Stdin:  readWriteNopCloser{&stdin},
+			Stdout: readWriteNopCloser{&stdout},
+			Stderr: readWriteNopCloser{&stderr},
+		}
+		op, err := c.srv.ExecContainer(c.name, req, &args)
+		if err != nil {
+			return errgo.Notef(err, "cannot execute command %q", cmdstr)
+		}
+		if err = op.Wait(); err != nil {
+			return errgo.Notef(err, "execute command operation failed")
+		}
+		code, err := retcode(op)
+		if err != nil {
+			return errgo.Mask(err)
+		}
+		if code != 0 {
+			return errgo.Newf("command %q exited with code %d: %s", cmdstr, code, stderr.String())
+		}
+		log.Debugw("succesfully executed command", "command", cmdstr, "stdout", stdout.String(), "stderr", stderr.String())
+		return nil
+	})
+	return errgo.Mask(err)
 }
 
 // addr returns the ip address of the container. It assumes the container will
@@ -330,6 +360,46 @@ func containerName(username string) string {
 	}
 	return name
 }
+
+// readWriteNopCloser is used to add a noop Close method to a io.ReadWriter.
+type readWriteNopCloser struct {
+	io.ReadWriter
+}
+
+// Close implement io.Closer by doing nothing.
+func (readWriteNopCloser) Close() error {
+	return nil
+}
+
+// retcode returns the exit code from the command executed with the given op.
+func retcode(op *lxd.Operation) (int, error) {
+	// See <https://github.com/lxc/lxd/blob/master/doc/rest-api.md#10containersnameexec>.
+	switch v := op.Metadata["return"].(type) {
+	// The concrete type for the retcode is float64, but it should really be an
+	// int, so we are being defensive here.
+	case int:
+		return v, nil
+	case float64:
+		return int(v), nil
+	}
+	return 0, errgo.Newf("cannot retrieve retcode from exec operation metadata %v", op.Metadata)
+}
+
+// singleFlight executes the given function, making sure that only one execution
+// is in-flight for a given key at a time. If a duplicate comes in, the caller
+// waits for the original to complete and receives the same error.
+func singleFlight(key string, f func() error) error {
+	_, err, _ := group.Do(key, func() (interface{}, error) {
+		if err := f(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	})
+	return err
+}
+
+// group holds the namespace used for executing tasks suppressing duplicates.
+var group = &singleflight.Group{}
 
 // sleep is defined as a variable for testing purposes.
 var sleep = func(d time.Duration) {
