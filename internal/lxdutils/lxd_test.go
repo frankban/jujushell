@@ -6,14 +6,12 @@ package lxdutils_test
 import (
 	"errors"
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	lxd "github.com/lxc/lxd/client"
 	"github.com/lxc/lxd/shared/api"
 	macaroon "gopkg.in/macaroon.v1"
@@ -45,7 +43,6 @@ var internalEnsureTests = []struct {
 	expectedSleepCalls      int
 	expectedExecName        string
 	expectedExecReqs        []api.ContainerExecPost
-	expectedExecArgs        []*lxd.ContainerExecArgs
 }{{
 	about: "error getting containers",
 	srv: &srv{
@@ -625,11 +622,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }, {
 	about: "error in the operation of logging into juju in the container",
 	srv: &srv{
@@ -695,10 +687,139 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+}, {
+	about: "error in the juju login command",
+	srv: &srv{
+		getStateAddresses: []api.ContainerStateNetworkAddress{{
+			Address: "1.2.3.4",
+			Family:  "inet",
+			Scope:   "global",
+		}},
+		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		createFileErrors: []error{nil, nil},
+		execMetadata: map[string]interface{}{
+			"return": float64(1),
+		},
+	},
+	image: "termserver",
+	info: &juju.Info{
+		User:           "dalek@external",
+		ControllerName: "my-controller",
+	},
+	creds: &juju.Credentials{
+		Macaroons: map[string]macaroon.Slice{
+			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
+		},
+	},
+	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": command "su - ubuntu -c juju login -c my-controller" exited with code 1: test error`,
+	expectedCreateReq: api.ContainersPost{
+		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+		Source: api.ContainerSource{
+			Type:  "image",
+			Alias: "termserver",
+		},
+	},
+	expectedUpdateReqs: []api.ContainerStatePut{{
+		Action:  "start",
+		Timeout: -1,
+	}, {
+		Action:  "stop",
+		Timeout: -1,
+	}},
+	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFilePaths: []string{
+		// Path to the cookie file dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
+		// Path to the controllers.yaml dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	},
+	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
+	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}, {
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}},
+	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
+		WaitForWS: true,
+	}},
+}, {
+	about: "error in the juju login command (invalid metadata)",
+	srv: &srv{
+		getStateAddresses: []api.ContainerStateNetworkAddress{{
+			Address: "1.2.3.4",
+			Family:  "inet",
+			Scope:   "global",
+		}},
+		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		createFileErrors: []error{nil, nil},
+		execMetadata: map[string]interface{}{
+			"return": "bad wolf",
+		},
+	},
+	image: "termserver",
+	info: &juju.Info{
+		User:           "dalek@external",
+		ControllerName: "my-controller",
+	},
+	creds: &juju.Credentials{
+		Macaroons: map[string]macaroon.Slice{
+			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
+		},
+	},
+	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot retrieve retcode from exec operation metadata .*`,
+	expectedCreateReq: api.ContainersPost{
+		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+		Source: api.ContainerSource{
+			Type:  "image",
+			Alias: "termserver",
+		},
+	},
+	expectedUpdateReqs: []api.ContainerStatePut{{
+		Action:  "start",
+		Timeout: -1,
+	}, {
+		Action:  "stop",
+		Timeout: -1,
+	}},
+	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFilePaths: []string{
+		// Path to the cookie file dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
+		// Path to the controllers.yaml dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	},
+	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
+	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}, {
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}},
+	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
+		WaitForWS: true,
 	}},
 }, {
 	about: "success",
@@ -768,11 +889,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }, {
 	about: "success with userpass authentication",
 	srv: &srv{
@@ -839,11 +955,6 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
-	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
 	}},
 }, {
 	about: "success with other containers around",
@@ -920,11 +1031,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }, {
 	about: "success with container already created",
 	srv: &srv{
@@ -985,11 +1091,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }, {
 	about: "success with container already started",
 	srv: &srv{
@@ -1041,11 +1142,6 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
-	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
 	}},
 }, {
 	about: "success with container already started (external user)",
@@ -1099,11 +1195,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }, {
 	about: "success with container already started (user with special chars)",
 	srv: &srv{
@@ -1156,11 +1247,6 @@ var internalEnsureTests = []struct {
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
 	}},
-	expectedExecArgs: []*lxd.ContainerExecArgs{{
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-	}},
 }}
 
 func TestEnsure(t *testing.T) {
@@ -1195,7 +1281,7 @@ func TestEnsure(t *testing.T) {
 			c.Assert(test.srv.createFileArgs, qt.CmpEquals(cmp.Comparer(createFileReqComparer)), test.expectedCreateFileArgs)
 			c.Assert(test.srv.execName, qt.Equals, test.expectedExecName)
 			c.Assert(test.srv.execReqs, qt.DeepEquals, test.expectedExecReqs)
-			c.Assert(test.srv.execArgs, qt.CmpEquals(cmpopts.IgnoreUnexported(*os.Stdin)), test.expectedExecArgs)
+			c.Assert(len(test.srv.execArgs), qt.Equals, len(test.expectedExecReqs))
 			c.Assert(s.callCount, qt.Equals, test.expectedSleepCalls)
 		})
 	}
@@ -1234,11 +1320,12 @@ type srv struct {
 	createFileArgs   []lxd.ContainerFileArgs
 	createFileErrors []error
 
-	execName    string
-	execReqs    []api.ContainerExecPost
-	execArgs    []*lxd.ContainerExecArgs
-	execError   error
-	execOpError error
+	execName     string
+	execReqs     []api.ContainerExecPost
+	execArgs     []*lxd.ContainerExecArgs
+	execError    error
+	execMetadata map[string]interface{}
+	execOpError  error
 }
 
 func (s *srv) GetContainers() ([]api.Container, error) {
@@ -1250,7 +1337,7 @@ func (s *srv) CreateContainer(req api.ContainersPost) (*lxd.Operation, error) {
 	if s.createError != nil {
 		return nil, s.createError
 	}
-	return newOp(s.createOpError), nil
+	return newOp(s.createOpError, nil), nil
 }
 
 func (s *srv) UpdateContainerState(name string, req api.ContainerStatePut, ETag string) (*lxd.Operation, error) {
@@ -1275,7 +1362,7 @@ func (s *srv) UpdateContainerState(name string, req api.ContainerStatePut, ETag 
 	if err != nil {
 		return nil, err
 	}
-	return newOp(opErr), nil
+	return newOp(opErr, nil), nil
 }
 
 func (s *srv) GetContainerState(name string) (*api.ContainerState, string, error) {
@@ -1334,22 +1421,30 @@ func (s *srv) ExecContainer(name string, req api.ContainerExecPost, args *lxd.Co
 	}
 	s.execReqs = append(s.execReqs, req)
 	s.execArgs = append(s.execArgs, args)
+	args.Stdout.Write([]byte("test output"))
+	args.Stderr.Write([]byte("test error"))
 	if s.execError != nil {
 		return nil, s.execError
 	}
-	return newOp(s.execOpError), nil
+	if s.execMetadata == nil {
+		s.execMetadata = map[string]interface{}{
+			"return": float64(0),
+		}
+	}
+	return newOp(s.execOpError, s.execMetadata), nil
 }
 
 func (s *srv) DeleteContainer(name string) (*lxd.Operation, error) {
 	s.deleteName = name
-	return newOp(nil), nil
+	return newOp(nil, nil), nil
 }
 
 // newOp creates and return a new LXD operation whose Wait method returns the
-// provided error.
-func newOp(err error) *lxd.Operation {
+// provided error and metadata.
+func newOp(err error, metadata map[string]interface{}) *lxd.Operation {
 	op := lxd.Operation{
 		Operation: api.Operation{
+			Metadata:   metadata,
 			StatusCode: api.Success,
 		},
 	}
