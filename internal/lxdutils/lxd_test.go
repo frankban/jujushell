@@ -58,6 +58,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error creating the container",
@@ -81,6 +86,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error in the operation of creating the container",
@@ -104,6 +114,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedExecName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 }, {
 	about: "error stopping the container",
@@ -128,6 +143,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error in the operation of stopping the container",
@@ -152,6 +172,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error starting the container",
@@ -178,6 +203,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error in the operation of starting the container",
@@ -204,6 +234,11 @@ var internalEnsureTests = []struct {
 		Timeout: -1,
 	}},
 	expectedUpdateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedExecName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 }, {
 	about: "error retrieving container state",
@@ -229,7 +264,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
@@ -254,7 +294,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 	expectedSleepCalls:   300,
@@ -291,7 +336,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 }, {
@@ -328,7 +378,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
@@ -371,7 +426,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
@@ -423,7 +483,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
@@ -475,7 +540,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
@@ -534,7 +604,12 @@ var internalEnsureTests = []struct {
 		Action:  "stop",
 		Timeout: -1,
 	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
 	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
@@ -567,7 +642,7 @@ var internalEnsureTests = []struct {
 		}},
 		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		createFileErrors: []error{nil, nil},
-		execError:        errors.New("bad wolf"),
+		execErrors:       []error{errors.New("bad wolf")},
 	},
 	image: "termserver",
 	info: &juju.Info{
@@ -620,6 +695,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
 		WaitForWS: true,
 	}},
 }, {
@@ -685,6 +763,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
 		WaitForWS: true,
 	}},
 }, {
@@ -753,6 +834,9 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
 		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
 	}},
 }, {
 	about: "error in the juju login command (invalid metadata)",
@@ -820,8 +904,83 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
 		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
 	}},
 }, {
+	about: "error initializing the shell session",
+	srv: &srv{
+		getStateAddresses: []api.ContainerStateNetworkAddress{{
+			Address: "1.2.3.4",
+			Family:  "inet",
+			Scope:   "global",
+		}},
+		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		createFileErrors: []error{nil, nil},
+		execErrors:       []error{nil, errors.New("bad wolf")},
+	},
+	image: "termserver",
+	info: &juju.Info{
+		User:           "dalek@external",
+		ControllerName: "my-controller",
+	},
+	creds: &juju.Credentials{
+		Macaroons: map[string]macaroon.Slice{
+			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
+		},
+	},
+	expectedError: `cannot initialize the shell session in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c ~/.session setup >> .session.log 2>&1": bad wolf`,
+	expectedCreateReq: api.ContainersPost{
+		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+		Source: api.ContainerSource{
+			Type:  "image",
+			Alias: "termserver",
+		},
+	},
+	expectedUpdateReqs: []api.ContainerStatePut{{
+		Action:  "start",
+		Timeout: -1,
+	}, {
+		Action:  "stop",
+		Timeout: -1,
+	}},
+	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedGetFilePaths: []string{
+		// Path to the cookie file dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
+		// Path to the controllers.yaml dir.
+		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	},
+	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
+	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}, {
+		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
+		UID:     42,
+		GID:     47,
+		Mode:    0600,
+	}},
+	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
+	expectedExecReqs: []api.ContainerExecPost{{
+		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
+		WaitForWS: true,
+	}},
+}, {
+
 	about: "success",
 	srv: &srv{
 		getStateAddresses: []api.ContainerStateNetworkAddress{{
@@ -887,6 +1046,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
 		WaitForWS: true,
 	}},
 }, {
@@ -954,6 +1116,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
 		WaitForWS: true,
 	}},
 }, {
@@ -1030,6 +1195,9 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
+		WaitForWS: true,
 	}},
 }, {
 	about: "success with container already created",
@@ -1090,6 +1258,9 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
+		WaitForWS: true,
 	}},
 }, {
 	about: "success with container already started",
@@ -1141,6 +1312,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
 		WaitForWS: true,
 	}},
 }, {
@@ -1194,6 +1368,9 @@ var internalEnsureTests = []struct {
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
 		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
+		WaitForWS: true,
 	}},
 }, {
 	about: "success with container already started (user with special chars)",
@@ -1245,6 +1422,9 @@ var internalEnsureTests = []struct {
 	expectedExecName: "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
 	expectedExecReqs: []api.ContainerExecPost{{
 		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
+		WaitForWS: true,
+	}, {
+		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
 		WaitForWS: true,
 	}},
 }}
@@ -1323,7 +1503,7 @@ type srv struct {
 	execName     string
 	execReqs     []api.ContainerExecPost
 	execArgs     []*lxd.ContainerExecArgs
-	execError    error
+	execErrors   []error
 	execMetadata map[string]interface{}
 	execOpError  error
 }
@@ -1423,8 +1603,12 @@ func (s *srv) ExecContainer(name string, req api.ContainerExecPost, args *lxd.Co
 	s.execArgs = append(s.execArgs, args)
 	args.Stdout.Write([]byte("test output"))
 	args.Stderr.Write([]byte("test error"))
-	if s.execError != nil {
-		return nil, s.execError
+	if len(s.execErrors) != 0 {
+		err := s.execErrors[0]
+		s.execErrors = s.execErrors[1:]
+		if err != nil {
+			return nil, err
+		}
 	}
 	if s.execMetadata == nil {
 		s.execMetadata = map[string]interface{}{
