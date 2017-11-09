@@ -68,13 +68,11 @@ func Ensure(srv lxd.ContainerServer, image string, info *juju.Info, creds *juju.
 		}
 		// Create and start the container if required.
 		if !created {
-			log.Debugw("creating container", "container", container.name)
 			if err = container.create(image); err != nil {
 				return errgo.Mask(err)
 			}
 		}
 		if !started {
-			log.Debugw("starting container", "container", container.name)
 			if err = container.start(); err != nil {
 				return errgo.Mask(err)
 			}
@@ -116,6 +114,7 @@ type container struct {
 
 // create creates the container using the stored LXD image with the given name.
 func (c *container) create(image string) error {
+	log.Debugw("creating container", "container", c.name, "image", image)
 	// Get LXD to create the container.
 	req := api.ContainersPost{
 		Name: c.name,
@@ -137,13 +136,23 @@ func (c *container) create(image string) error {
 
 // start starts the container.
 func (c *container) start() error {
+	log.Debugw("starting container", "container", c.name)
 	return errgo.Mask(c.updateState("start"))
 }
 
-// delete stops and removes the container.
+// delete cleans up, stops and removes the container.
 func (c *container) delete() error {
-	// Ignore stop errors as we'll try to delete the container anyway.
-	c.updateState("stop")
+	log.Debugw("tearing down the shell session", "container", c.name)
+	if err := c.exec("su", "-", "ubuntu", "-c", "~/.session teardown"); err != nil {
+		// Ignore any execution errors.
+		log.Debugw("cannot tear down the shell session", "container", c.name, "error", err.Error())
+	}
+	log.Debugw("stopping container", "container", c.name)
+	if err := c.updateState("stop"); err != nil {
+		// Ignore stop errors as we'll try to delete the container anyway.
+		log.Debugw("cannot stop container", "container", c.name, "error", err.Error())
+	}
+	log.Debugw("deleting container", "container", c.name)
 	if _, err := c.srv.DeleteContainer(c.name); err != nil {
 		return errgo.Notef(err, "cannot delete container %q", c.name)
 	}
@@ -198,6 +207,12 @@ func (c *container) prepare(info *juju.Info, creds *juju.Credentials) error {
 	log.Debugw("logging into Juju", "container", c.name)
 	if err = c.exec("su", "-", "ubuntu", "-c", "juju login -c "+info.ControllerName); err != nil {
 		return errgo.Notef(err, "cannot log into Juju in container %q", c.name)
+	}
+
+	// Initialize the shell session, including SSH keys.
+	log.Debugw("initializing the shell session", "container", c.name)
+	if err = c.exec("su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"); err != nil {
+		return errgo.Notef(err, "cannot initialize the shell session in container %q", c.name)
 	}
 
 	return nil
