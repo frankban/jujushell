@@ -1461,7 +1461,7 @@ func TestEnsure(t *testing.T) {
 			c.Assert(test.srv.createFileArgs, qt.CmpEquals(cmp.Comparer(createFileReqComparer)), test.expectedCreateFileArgs)
 			c.Assert(test.srv.execName, qt.Equals, test.expectedExecName)
 			c.Assert(test.srv.execReqs, qt.DeepEquals, test.expectedExecReqs)
-			c.Assert(len(test.srv.execArgs), qt.Equals, len(test.expectedExecReqs))
+			c.Assert(test.srv.execArgs, qt.HasLen, len(test.expectedExecReqs))
 			c.Assert(s.callCount, qt.Equals, test.expectedSleepCalls)
 		})
 	}
