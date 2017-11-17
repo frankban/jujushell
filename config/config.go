@@ -62,11 +62,6 @@ func validate(c Config) error {
 	}
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
-		if c.JujuCert == "" {
-			missing = append(missing, "juju-cert")
-		}
-	} else if c.JujuCert == "" && c.JujuAddrs[0] != "jimm.jujucharms.com:443" {
-		missing = append(missing, "juju-cert")
 	}
 	if c.Port <= 0 {
 		missing = append(missing, "port")
