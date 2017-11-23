@@ -8,13 +8,16 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/errgo.v1"
 
 	"github.com/CanonicalLtd/jujushell/apiparams"
 	"github.com/CanonicalLtd/jujushell/internal/juju"
 	"github.com/CanonicalLtd/jujushell/internal/logging"
 	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
+	"github.com/CanonicalLtd/jujushell/internal/metrics"
 	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
+	"github.com/CanonicalLtd/jujushell/internal/wstransport"
 )
 
 var log = logging.Log()
@@ -22,30 +25,24 @@ var log = logging.Log()
 // Register registers the API handlers in the given mux.
 func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, image string) error {
 	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", serveWebSocket(jujuAddrs, jujuCert, image))
+	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(jujuAddrs, jujuCert, image)))
 	mux.HandleFunc("/status/", statusHandler)
+	mux.Handle("/metrics", promhttp.Handler())
 	return nil
 }
 
 // serveWebSocket handles WebSocket connections.
 func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
-	upgrader := websocket.Upgrader{
-		// TODO: only allow request from the controller addresses.
-		CheckOrigin: func(*http.Request) bool {
-			return true
-		},
-		ReadBufferSize:  webSocketBufferSize,
-		WriteBufferSize: webSocketBufferSize,
-	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection.
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := wstransport.Upgrade(w, r)
 		if err != nil {
 			log.Errorw("cannot upgrade to WebSocket", "url", r.URL, "err", err)
 			return
 		}
-		log.Infow("WebSocket connection established", "remote-addr", r.RemoteAddr)
 		defer conn.Close()
+		conn = metrics.InstrumentWSConnection(conn)
+		log.Infow("WebSocket connection established", "remote-addr", r.RemoteAddr)
 
 		// Start serving requests.
 		info, creds, err := handleLogin(conn, jujuAddrs, jujuCert)
@@ -73,13 +70,13 @@ func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
 // Example request/response:
 //     --> {"operation": "login", "username": "admin", "password": "secret"}
 //     <-- {"code": "ok", "message": "logged in as \"admin\""}
-func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (info *juju.Info, creds *juju.Credentials, err error) {
+func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string) (info *juju.Info, creds *juju.Credentials, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
-		return nil, nil, writeError(conn, errgo.Mask(err))
+		return nil, nil, conn.Error(errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpLogin {
-		return nil, nil, writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
+		return nil, nil, conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
 	}
 	creds = &juju.Credentials{
 		Username:  req.Username,
@@ -89,9 +86,9 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (inf
 	log.Debugw("authenticating to the controller", "addresses", jujuAddrs)
 	info, err = juju.Authenticate(jujuAddrs, creds, jujuCert)
 	if err != nil {
-		return nil, nil, writeError(conn, errgo.Notef(err, "cannot log into juju"))
+		return nil, nil, conn.Error(errgo.Notef(err, "cannot log into juju"))
 	}
-	return info, creds, writeOK(conn, "logged in as %q", info.User)
+	return info, creds, conn.OK("logged in as %q", info.User)
 }
 
 // handleStart ensures an LXD is available for the given username, by checking
@@ -99,35 +96,35 @@ func handleLogin(conn *websocket.Conn, jujuAddrs []string, jujuCert string) (inf
 // the provided image name. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn *websocket.Conn, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+func handleStart(conn wstransport.Conn, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return "", conn.Error(errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpStart {
-		return "", writeError(conn, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
+		return "", conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
 	log.Debugw("connecting to the LXD server")
 	lxdsrv, err := lxdutils.Connect()
 	if err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return "", conn.Error(errgo.Mask(err))
 	}
 	log.Debugw("setting up the LXD instance", "image", image)
 	addr, err = lxdutils.Ensure(lxdsrv, image, info, creds)
 	if err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return "", conn.Error(errgo.Mask(err))
 	}
 	url := fmt.Sprintf("http://%s:%d/status", addr, termserverPort)
 	log.Debugw("waiting for the internal shell service to be ready", "url", url)
 	if err = waitReady(url); err != nil {
-		return "", writeError(conn, errgo.Mask(err))
+		return "", conn.Error(errgo.Mask(err))
 	}
-	return addr, writeOK(conn, "session is ready")
+	return addr, conn.OK("session is ready")
 }
 
 // handleSession proxies traffic from the client to the LXD instance at the
 // given address.
-func handleSession(conn *websocket.Conn, addr string) error {
+func handleSession(conn wstransport.Conn, addr string) error {
 	// The path must reflect what used by the Terminado service which is
 	// running in the LXD container.
 	url := fmt.Sprintf("ws://%s:%d/websocket", addr, termserverPort)
@@ -140,36 +137,5 @@ func handleSession(conn *websocket.Conn, addr string) error {
 	return errgo.Mask(wsproxy.Copy(conn, lxcconn))
 }
 
-func writeError(conn *websocket.Conn, err error) error {
-	if werr := writeResponse(conn, apiparams.Error, err.Error()); werr != nil {
-		return errgo.Notef(werr, "original error: %s", err)
-	}
-	return err
-}
-
-func writeOK(conn *websocket.Conn, format string, a ...interface{}) error {
-	msg := fmt.Sprintf(format, a...)
-	if werr := writeResponse(conn, apiparams.OK, msg); werr != nil {
-		return errgo.Notef(werr, "original message: %s", msg)
-	}
-	return nil
-}
-
-func writeResponse(conn *websocket.Conn, code apiparams.ResponseCode, message string) error {
-	resp := apiparams.Response{
-		Code:    code,
-		Message: message,
-	}
-	log.Debugw("sending response", "code", code, "message", message)
-	if err := conn.WriteJSON(resp); err != nil {
-		return errgo.Notef(err, "cannot write WebSocket response")
-	}
-	return nil
-}
-
-const (
-	// webSocketBufferSize holds the frame size for WebSocket messages.
-	webSocketBufferSize = 65536
-	// termserverPort holds the port on which the term server is listening.
-	termserverPort = 8765
-)
+// termserverPort holds the port on which the term server is listening.
+const termserverPort = 8765
