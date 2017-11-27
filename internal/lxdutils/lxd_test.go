@@ -73,14 +73,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "stop",
 		Timeout: -1,
@@ -101,14 +95,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "rose",
 	},
-	expectedError: "create container operation failed: bad wolf",
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     "create container operation failed: bad wolf",
+	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "stop",
 		Timeout: -1,
@@ -130,14 +118,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "stop",
 		Timeout: -1,
@@ -159,14 +141,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "stop",
 		Timeout: -1,
@@ -187,14 +163,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot start container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot start container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -218,14 +188,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "rose",
 	},
-	expectedError: "start container operation failed: bad wolf",
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     "start container operation failed: bad wolf",
+	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -249,14 +213,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot get state for container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot get state for container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -279,14 +237,8 @@ var internalEnsureTests = []struct {
 	info: &juju.Info{
 		User: "who",
 	},
-	expectedError: `cannot find address for "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot find address for "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"`,
+	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -321,14 +273,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{},
 		},
 	},
-	expectedError: `cannot set macaroons in jar: cannot create cookie for "https://1.2.3.4/identity": no macaroons in cookie`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot set macaroons in jar: cannot create cookie for "https://1.2.3.4/identity": no macaroons in cookie`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -363,14 +309,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local": a file with the same name exists in the container`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local": a file with the same name exists in the container`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -411,14 +351,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share/juju" in the container: bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share/juju" in the container: bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -468,14 +402,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/cookies/my-controller.json" in the container: bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/cookies/my-controller.json" in the container: bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -525,14 +453,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share" in the container: bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share" in the container: bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -589,14 +511,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/controllers.yaml" in the container: bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/controllers.yaml" in the container: bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -654,14 +570,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c juju login -c my-controller": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c juju login -c my-controller": bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -722,14 +632,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": execute command operation failed: bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": execute command operation failed: bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -792,14 +696,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": command "su - ubuntu -c juju login -c my-controller" exited with code 1: test error`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": command "su - ubuntu -c juju login -c my-controller" exited with code 1: test error`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -862,14 +760,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot retrieve retcode from exec operation metadata .*`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot retrieve retcode from exec operation metadata .*`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -930,14 +822,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError: `cannot initialize the shell session in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c ~/.session setup >> .session.log 2>&1": bad wolf`,
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedError:     `cannot initialize the shell session in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c ~/.session setup >> .session.log 2>&1": bad wolf`,
+	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -1009,14 +895,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedAddr: "1.2.3.6",
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedAddr:      "1.2.3.6",
+	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -1079,14 +959,8 @@ var internalEnsureTests = []struct {
 		Username: "who",
 		Password: "secret",
 	},
-	expectedAddr: "1.2.3.6",
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedAddr:      "1.2.3.6",
+	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -1157,14 +1031,8 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedAddr: "1.2.3.6",
-	expectedCreateReq: api.ContainersPost{
-		Name: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-	},
+	expectedAddr:      "1.2.3.6",
+	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
 	expectedUpdateReqs: []api.ContainerStatePut{{
 		Action:  "start",
 		Timeout: -1,
@@ -1670,6 +1538,20 @@ type sleeper struct {
 func (s *sleeper) sleep(d time.Duration) {
 	s.callCount++
 	s.c.Assert(d, qt.Equals, 100*time.Millisecond)
+}
+
+// createRequest returns a create request for a container with the given name.
+func createRequest(name string) api.ContainersPost {
+	return api.ContainersPost{
+		Name: name,
+		Source: api.ContainerSource{
+			Type:  "image",
+			Alias: "termserver",
+		},
+		ContainerPut: api.ContainerPut{
+			Profiles: []string{"default", "termserver-limited"},
+		},
+	}
 }
 
 // patchSleep patches the api.sleep variable so that it is possible to avoid
