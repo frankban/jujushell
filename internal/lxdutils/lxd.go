@@ -122,6 +122,9 @@ func (c *container) create(image string) error {
 			Type:  "image",
 			Alias: image,
 		},
+		ContainerPut: api.ContainerPut{
+			Profiles: []string{"default", "termserver-limited"},
+		},
 	}
 	op, err := c.srv.CreateContainer(req)
 	if err != nil {
