@@ -5,396 +5,115 @@ package lxdutils_test
 
 import (
 	"errors"
-	"io"
-	"strings"
+	"fmt"
 	"testing"
-	"time"
 
 	qt "github.com/frankban/quicktest"
-	"github.com/google/go-cmp/cmp"
-	lxd "github.com/lxc/lxd/client"
-	"github.com/lxc/lxd/shared/api"
 	macaroon "gopkg.in/macaroon.v1"
 
 	"github.com/CanonicalLtd/jujushell/internal/juju"
+	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
 	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
 )
 
-var internalEnsureTests = []struct {
-	about string
-	srv   *srv
-	image string
-	info  *juju.Info
-	creds *juju.Credentials
+var ensureTests = []struct {
+	about  string
+	client *client
+	info   *juju.Info
+	creds  *juju.Credentials
 
 	expectedAddr  string
 	expectedError string
 
-	expectedCreateReq       api.ContainersPost
-	expectedUpdateReqs      []api.ContainerStatePut
-	expectedUpdateName      string
-	expectedDeleteName      string
-	expectedGetStateName    string
-	expectedGetFileName     string
-	expectedGetFilePaths    []string
-	expectedCreateFileName  string
-	expectedCreateFilePaths []string
-	expectedCreateFileArgs  []lxd.ContainerFileArgs
-	expectedSleepCalls      int
-	expectedExecName        string
-	expectedExecReqs        []api.ContainerExecPost
+	expectedCalls [][]string
 }{{
 	about: "error getting containers",
-	srv: &srv{
-		getError: errors.New("bad wolf"),
+	client: &client{
+		allError: errors.New("bad wolf"),
 	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
+	expectedError: "bad wolf",
+	expectedCalls: [][]string{
+		call("All"),
+		// Cleaning up.
+		call("Get", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	},
-	expectedError: "cannot get containers: bad wolf",
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error creating the container",
-	srv: &srv{
+	client: &client{
 		createError: errors.New("bad wolf"),
 	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
+	expectedError: "bad wolf",
+	expectedCalls: [][]string{
+		call("All"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		// Cleaning up.
+		call("Get", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	},
-	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-}, {
-	about: "error in the operation of creating the container",
-	srv: &srv{
-		createOpError: errors.New("bad wolf"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "rose",
-	},
-	expectedError:     "create container operation failed: bad wolf",
-	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-}, {
-	about: "error stopping the container",
-	srv: &srv{
-		createError: errors.New("bad wolf"),
-		stopError:   errors.New("stop error"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
-	},
-	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-}, {
-	about: "error in the operation of stopping the container",
-	srv: &srv{
-		createError: errors.New("bad wolf"),
-		stopOpError: errors.New("stop op error"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
-	},
-	expectedError:     `cannot create container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error starting the container",
-	srv: &srv{
+	client: &client{
 		startError: errors.New("bad wolf"),
 	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
+	expectedError: "bad wolf",
+	expectedCalls: [][]string{
+		call("All"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Start"),
+		// Cleaning up.
+		call("Get", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
+		call("Delete", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	},
-	expectedError:     `cannot start container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-}, {
-	about: "error in the operation of starting the container",
-	srv: &srv{
-		startOpError: errors.New("bad wolf"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "rose",
-	},
-	expectedError:     "start container operation failed: bad wolf",
-	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-}, {
-	about: "error retrieving container state",
-	srv: &srv{
-		getStateError: errors.New("bad wolf"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
-	},
-	expectedError:     `cannot get state for container "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who": bad wolf`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
 }, {
 	about: "error retrieving container address",
-	srv:   &srv{},
-	image: "termserver",
-	info: &juju.Info{
-		User: "who",
+	client: &client{
+		addrError: errors.New("bad wolf"),
 	},
-	expectedError:     `cannot find address for "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"`,
-	expectedCreateReq: createRequest("ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedSleepCalls:   300,
+	expectedError: "bad wolf",
+	expectedCalls: [][]string{
+		call("All"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Start"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Addr"),
+		// Cleaning up.
+		call("Get", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Stop"),
+		call("Delete", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
+	},
 }, {
-	about: "error setting up the macaroons cookie jar",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-	},
-	image: "termserver",
+	about:  "error setting macaroons in the jar",
+	client: &client{},
 	info: &juju.Info{
-		User: "dalek@external",
+		User: "dalek",
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{},
+			":::": nil,
 		},
 	},
-	expectedError:     `cannot set macaroons in jar: cannot create cookie for "https://1.2.3.4/identity": no macaroons in cookie`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-}, {
-	about: "error getting directory information from the container",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps: []fileResponse{{}, {}, {isFile: true}},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User: "dalek@external",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local": a file with the same name exists in the container`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local",
+	expectedError: `cannot set macaroons in jar: cannot parse macaroon URL ":::": parse :::: missing protocol scheme`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 	},
 }, {
-	about: "error creating the path for the cookie file",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {hasErr: true}},
-		createFileErrors: []error{errors.New("bad wolf")},
+	about: "error writing the cookie file",
+	client: &client{
+		writeFileErrors: []error{errors.New("bad wolf")},
 	},
-	image: "termserver",
 	info: &juju.Info{
-		User: "dalek@external",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share/juju" in the container: bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		UID:  42,
-		GID:  47,
-		Mode: 0700,
-		Type: "directory",
-	}},
-}, {
-	about: "error creating the cookie file",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {hasErr: true}},
-		createFileErrors: []error{errors.New("bad wolf")},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "dalek@external",
+		User:           "dalek",
 		ControllerName: "my-controller",
 	},
 	creds: &juju.Credentials{
@@ -402,693 +121,219 @@ var internalEnsureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError:     `cannot create cookie file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/cookies/my-controller.json" in the container: bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
+	expectedError: `cannot create cookie file in container "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek": bad wolf`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
 }, {
-	about: "error creating the path for the controllers file",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {hasErr: true}},
-		createFileErrors: []error{nil, errors.New("bad wolf")},
+	about: "error writing the accounts file",
+	client: &client{
+		writeFileErrors: []error{errors.New("bad wolf")},
 	},
-	image: "termserver",
 	info: &juju.Info{
-		User:           "dalek@external",
+		User:           "dalek",
 		ControllerName: "my-controller",
+	},
+	creds: &juju.Credentials{
+		Username: "dalek@skaro",
+		Password: "exterminate",
+	},
+	expectedError: `cannot create accounts file in container "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek": bad wolf`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		call(
+			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
+			"/home/ubuntu/.local/share/juju/accounts.yaml",
+			"controllers:\n  my-controller:\n    user: dalek@skaro\n    password: exterminate\n"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+	},
+}, {
+	about: "error writing controllers.yaml",
+	client: &client{
+		writeFileErrors: []error{nil, errors.New("bad wolf")},
+	},
+	info: &juju.Info{
+		User:           "dalek",
+		ControllerName: "my-controller",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.4"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError:     `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create directory "/home/ubuntu/.local/share" in the container: bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share",
+	expectedError: `cannot create controllers file in container "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek": bad wolf`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call(
+			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  my-controller:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.4]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: my-controller\n"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		UID:  42,
-		GID:  47,
-		Mode: 0700,
-		Type: "directory",
-	}},
 }, {
-	about: "error creating the controller file",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {hasErr: true}},
-		createFileErrors: []error{nil, errors.New("bad wolf")},
+	about: "error logging into juju",
+	client: &client{
+		execErrors: []error{errors.New("bad wolf")},
 	},
-	image: "termserver",
 	info: &juju.Info{
-		User:           "dalek@external",
+		User:           "dalek",
 		ControllerName: "my-controller",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.4"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError:     `cannot create controllers file in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot create file "/home/ubuntu/.local/share/juju/controllers.yaml" in the container: bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	expectedError: `cannot log into Juju in container "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek": bad wolf`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call(
+			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  my-controller:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.4]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: my-controller\n"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "juju login -c my-controller"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
 }, {
-	about: "error logging into juju in the container",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-		execErrors:       []error{errors.New("bad wolf")},
+	about: "error initializing the shell",
+	client: &client{
+		execErrors: []error{nil, errors.New("bad wolf")},
 	},
-	image: "termserver",
 	info: &juju.Info{
-		User:           "dalek@external",
+		User:           "dalek",
 		ControllerName: "my-controller",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.4"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c juju login -c my-controller": bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	expectedError: `cannot initialize the shell session in container "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek": bad wolf`,
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call(
+			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  my-controller:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.4]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: my-controller\n"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "juju login -c my-controller"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
+		// Cleaning up.
+		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Exec", "su", "-", "ubuntu", "-c", "~/.session teardown"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Stop"),
+		call("Delete", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
 }, {
-	about: "error in the operation of logging into juju in the container",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-		execOpError:      errors.New("bad wolf"),
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "dalek@external",
-		ControllerName: "my-controller",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": execute command operation failed: bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "error in the juju login command",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-		execMetadata: map[string]interface{}{
-			"return": float64(1),
-		},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "dalek@external",
-		ControllerName: "my-controller",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": command "su - ubuntu -c juju login -c my-controller" exited with code 1: test error`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "error in the juju login command (invalid metadata)",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-		execMetadata: map[string]interface{}{
-			"return": "bad wolf",
-		},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "dalek@external",
-		ControllerName: "my-controller",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot log into Juju in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot retrieve retcode from exec operation metadata .*`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "error initializing the shell session",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-		execErrors:       []error{nil, errors.New("bad wolf")},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "dalek@external",
-		ControllerName: "my-controller",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedError:     `cannot initialize the shell session in container "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external": cannot execute command "su - ubuntu -c ~/.session setup >> .session.log 2>&1": bad wolf`,
-	expectedCreateReq: createRequest("ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}, {
-		Action:  "stop",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedDeleteName:   "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetStateName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/my-controller.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-ba5d6ad35b5468ef1990ea04f8a81503605d6b79-dalek-external",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c my-controller"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session teardown"},
-		WaitForWS: true,
-	}},
-}, {
-
-	about: "success",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet6",
-			Scope:   "global",
-		}, {
-			Address: "1.2.3.5",
-			Family:  "inet",
-			Scope:   "local",
-		}, {
-			Address: "1.2.3.6",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
+	about:  "success",
+	client: &client{},
 	info: &juju.Info{
 		User:           "rose",
-		ControllerName: "ctrl",
+		ControllerName: "my-controller",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.4"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedAddr:      "1.2.3.6",
-	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	expectedAddr: "1.2.3.6",
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Started"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Addr"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call(
+			"(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  my-controller:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.4]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: my-controller\n"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Exec", "su", "-", "ubuntu", "-c", "juju login -c my-controller"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
 	},
-	expectedCreateFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
 }, {
-	about: "success with userpass authentication",
-	srv: &srv{
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet6",
-			Scope:   "global",
-		}, {
-			Address: "1.2.3.5",
-			Family:  "inet",
-			Scope:   "local",
-		}, {
-			Address: "1.2.3.6",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
+	about:  "success with container stopped and external user",
+	client: &client{},
 	info: &juju.Info{
-		User:           "rose",
+		User:           "cyberman@external",
 		ControllerName: "ctrl",
-	},
-	creds: &juju.Credentials{
-		Username: "who",
-		Password: "secret",
-	},
-	expectedAddr:      "1.2.3.6",
-	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFilePaths: []string{
-		// Path to the accounts.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/accounts.yaml", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "success with other containers around",
-	srv: &srv{
-		containers: []api.Container{{
-			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-dalek",
-			Status: "Stopped",
-		}, {
-			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-cyberman",
-			Status: "Started",
-		}},
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet6",
-			Scope:   "global",
-		}, {
-			Address: "1.2.3.5",
-			Family:  "inet",
-			Scope:   "local",
-		}, {
-			Address: "1.2.3.6",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "rose",
-		ControllerName: "ctrl",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.7"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
-	expectedAddr:      "1.2.3.6",
-	expectedCreateReq: createRequest("ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose"),
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetStateName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	expectedAddr: "1.2.3.7",
+	expectedCalls: [][]string{
+		call("All"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Started"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Start"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Addr"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call(
+			"(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  ctrl:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.7]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: ctrl\n"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Exec", "su", "-", "ubuntu", "-c", "juju login -c ctrl"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
 	},
-	expectedCreateFileName:  "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
 }, {
-	about: "success with container already created",
-	srv: &srv{
-		containers: []api.Container{{
-			Name:   "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-dalek",
-			Status: "Stopped",
-		}, {
-			Name:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-			Status: "Stopped",
-		}},
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
+	about:  "success without machine and user with invalid characters",
+	client: &client{},
 	info: &juju.Info{
-		User:           "who",
+		User:           "d_a+l@e.k",
 		ControllerName: "ctrl",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.7"},
 	},
 	creds: &juju.Credentials{
 		Macaroons: map[string]macaroon.Slice{
@@ -1096,220 +341,44 @@ var internalEnsureTests = []struct {
 		},
 	},
 	expectedAddr: "1.2.3.4",
-	expectedUpdateReqs: []api.ContainerStatePut{{
-		Action:  "start",
-		Timeout: -1,
-	}},
-	expectedUpdateName:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetFileName:  "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
+	expectedCalls: [][]string{
+		call("All"),
+		call("Create", "termserver", "ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k", "default", "termserver-limited"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Started"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Start"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Addr"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call(
+			"(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  ctrl:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.7]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: ctrl\n"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Exec", "su", "-", "ubuntu", "-c", "juju login -c ctrl"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
 	},
-	expectedCreateFileName:  "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "success with container already started",
-	srv: &srv{
-		containers: []api.Container{{
-			Name:   "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-			Status: "Started",
-		}},
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "who",
-		ControllerName: "ctrl",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedAddr:         "1.2.3.4",
-	expectedGetStateName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetFileName:  "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "success with container already started (external user)",
-	srv: &srv{
-		containers: []api.Container{{
-			Name:   "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
-			Status: "Started",
-		}},
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "cyberman@external",
-		ControllerName: "ctrl",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedAddr:         "1.2.3.4",
-	expectedGetStateName: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
-	expectedGetFileName:  "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
-}, {
-	about: "success with container already started (user with special chars)",
-	srv: &srv{
-		containers: []api.Container{{
-			Name:   "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
-			Status: "Started",
-		}},
-		getStateAddresses: []api.ContainerStateNetworkAddress{{
-			Address: "1.2.3.4",
-			Family:  "inet",
-			Scope:   "global",
-		}},
-		getFileResps:     []fileResponse{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
-		createFileErrors: []error{nil, nil},
-	},
-	image: "termserver",
-	info: &juju.Info{
-		User:           "these.are@the++voy_age",
-		ControllerName: "ctrl",
-	},
-	creds: &juju.Credentials{
-		Macaroons: map[string]macaroon.Slice{
-			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
-		},
-	},
-	expectedAddr:         "1.2.3.4",
-	expectedGetStateName: "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
-	expectedGetFileName:  "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
-	expectedGetFilePaths: []string{
-		// Path to the cookie file dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju", "/home/ubuntu/.local/share/juju/cookies",
-		// Path to the controllers.yaml dir.
-		"/home", "/home/ubuntu", "/home/ubuntu/.local", "/home/ubuntu/.local/share", "/home/ubuntu/.local/share/juju",
-	},
-	expectedCreateFileName:  "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
-	expectedCreateFilePaths: []string{"/home/ubuntu/.local/share/juju/cookies/ctrl.json", "/home/ubuntu/.local/share/juju/controllers.yaml"},
-	expectedCreateFileArgs: []lxd.ContainerFileArgs{{
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}, {
-		Content: strings.NewReader("thi is just a placeholder: see createFileReqComparer below"),
-		UID:     42,
-		GID:     47,
-		Mode:    0600,
-	}},
-	expectedExecName: "ts-f9d4707cdb10d7be9e7936b88d8e6ed4998edd2d-these-are-the--v",
-	expectedExecReqs: []api.ContainerExecPost{{
-		Command:   []string{"su", "-", "ubuntu", "-c", "juju login -c ctrl"},
-		WaitForWS: true,
-	}, {
-		Command:   []string{"su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"},
-		WaitForWS: true,
-	}},
 }}
 
 func TestEnsure(t *testing.T) {
-	createFileReqComparer := func(a, b io.ReadSeeker) bool {
-		return (a != nil && b != nil) || a == b
-	}
-	for _, test := range internalEnsureTests {
+	for _, test := range ensureTests {
 		t.Run(test.about, func(t *testing.T) {
 			c := qt.New(t)
-			s := &sleeper{
-				c: c,
+			if test.info == nil {
+				test.info = &juju.Info{
+					User: "who",
+				}
 			}
-			restore := patchSleep(s.sleep)
-			defer restore()
-			addr, err := lxdutils.Ensure(test.srv, test.image, test.info, test.creds)
+			test.client.allResult = []*container{{
+				name:    "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek",
+				addr:    "1.2.3.5",
+				started: true,
+			}, {
+				name:    "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
+				addr:    "1.2.3.6",
+				started: true,
+			}, {
+				name: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
+				addr: "1.2.3.7",
+			}}
+			addr, err := lxdutils.Ensure(test.client, "termserver", test.info, test.creds)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				c.Assert(addr, qt.Equals, "")
@@ -1317,251 +386,149 @@ func TestEnsure(t *testing.T) {
 				c.Assert(err, qt.Equals, nil)
 				c.Assert(addr, qt.Equals, test.expectedAddr)
 			}
-			c.Assert(test.srv.createReq, qt.DeepEquals, test.expectedCreateReq)
-			c.Assert(test.srv.updateReqs, qt.DeepEquals, test.expectedUpdateReqs)
-			c.Assert(test.srv.updateName, qt.Equals, test.expectedUpdateName)
-			c.Assert(test.srv.deleteName, qt.Equals, test.expectedDeleteName)
-			c.Assert(test.srv.getStateName, qt.Equals, test.expectedGetStateName)
-			c.Assert(test.srv.getFileName, qt.Equals, test.expectedGetFileName)
-			c.Assert(test.srv.getFilePaths, qt.DeepEquals, test.expectedGetFilePaths)
-			c.Assert(test.srv.createFileName, qt.Equals, test.expectedCreateFileName)
-			c.Assert(test.srv.createFilePaths, qt.DeepEquals, test.expectedCreateFilePaths)
-			c.Assert(test.srv.createFileArgs, qt.CmpEquals(cmp.Comparer(createFileReqComparer)), test.expectedCreateFileArgs)
-			c.Assert(test.srv.execName, qt.Equals, test.expectedExecName)
-			c.Assert(test.srv.execReqs, qt.DeepEquals, test.expectedExecReqs)
-			c.Assert(test.srv.execArgs, qt.HasLen, len(test.expectedExecReqs))
-			c.Assert(s.callCount, qt.Equals, test.expectedSleepCalls)
+			c.Assert(test.client.calls, qt.DeepEquals, test.expectedCalls)
 		})
 	}
 }
 
-// srv implements lxd.ContainerServer for testing purposes.
-type srv struct {
-	lxd.ContainerServer
+// client implements lxdclient.Client for testing purposes.
+type client struct {
+	lxdclient.Client
 
-	containers []api.Container
-	getError   error
+	allResult []*container
+	allError  error
 
-	createReq     api.ContainersPost
-	createError   error
-	createOpError error
+	createError error
+	startError  error
+	stopError   error
+	addrError   error
 
-	updateName   string
-	updateReqs   []api.ContainerStatePut
-	startError   error
-	startOpError error
-	stopError    error
-	stopOpError  error
+	writeFileErrors []error
 
-	getStateName      string
-	getStateAddresses []api.ContainerStateNetworkAddress
-	getStateError     error
+	execOutput string
+	execErrors []error
 
-	deleteName string
-
-	getFileName  string
-	getFilePaths []string
-	getFileResps []fileResponse
-
-	createFileName   string
-	createFilePaths  []string
-	createFileArgs   []lxd.ContainerFileArgs
-	createFileErrors []error
-
-	execName     string
-	execReqs     []api.ContainerExecPost
-	execArgs     []*lxd.ContainerExecArgs
-	execErrors   []error
-	execMetadata map[string]interface{}
-	execOpError  error
+	calls [][]string
 }
 
-func (s *srv) GetContainers() ([]api.Container, error) {
-	return s.containers, s.getError
+func (cl *client) register(name string, args ...string) {
+	cl.calls = append(cl.calls, call(name, args...))
 }
 
-func (s *srv) CreateContainer(req api.ContainersPost) (*lxd.Operation, error) {
-	s.createReq = req
-	if s.createError != nil {
-		return nil, s.createError
+func (cl *client) All() ([]lxdclient.Container, error) {
+	cl.register("All")
+	result := make([]lxdclient.Container, len(cl.allResult))
+	for i, container := range cl.allResult {
+		container.client = cl
+		result[i] = container
 	}
-	return newOp(s.createOpError, nil), nil
+	return result, cl.allError
 }
 
-func (s *srv) UpdateContainerState(name string, req api.ContainerStatePut, ETag string) (*lxd.Operation, error) {
-	if s.updateName == "" {
-		s.updateName = name
+func (cl *client) Get(name string) (lxdclient.Container, error) {
+	cl.register("Get", name)
+	for _, container := range cl.allResult {
+		if container.name == name {
+			container.client = cl
+			return container, nil
+		}
 	}
-	if s.updateName != name {
-		panic("updating two different containers in the same request")
-	}
-	s.updateReqs = append(s.updateReqs, req)
-	var err, opErr error
-	switch req.Action {
-	case "start":
-		err = s.startError
-		opErr = s.startOpError
-	case "stop":
-		err = s.stopError
-		opErr = s.stopOpError
-	default:
-		panic("unexpected action " + req.Action)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return newOp(opErr, nil), nil
+	return nil, errors.New("not found")
 }
 
-func (s *srv) GetContainerState(name string) (*api.ContainerState, string, error) {
-	s.getStateName = name
-	if s.getStateError != nil {
-		return nil, "", s.getStateError
+func (cl *client) Create(image, name string, profiles ...string) (lxdclient.Container, error) {
+	args := append([]string{image, name}, profiles...)
+	cl.register("Create", args...)
+	if cl.createError != nil {
+		return nil, cl.createError
 	}
-	return &api.ContainerState{
-		Network: map[string]api.ContainerStateNetwork{
-			"eth0": {
-				Addresses: s.getStateAddresses,
-			},
-		},
-	}, "", nil
+	c := &container{
+		client:  cl,
+		name:    name,
+		addr:    "1.2.3.4",
+		started: false,
+	}
+	cl.allResult = append(cl.allResult, c)
+	return c, nil
 }
 
-func (s *srv) GetContainerFile(name, path string) (io.ReadCloser, *lxd.ContainerFileResponse, error) {
-	if len(s.getFileResps) == 0 {
-		panic("cannot serve file " + path)
-	}
-	if s.getFileName == "" {
-		s.getFileName = name
-	}
-	if s.getFileName != name {
-		panic("getting files from two different containers in the same request")
-	}
-	s.getFilePaths = append(s.getFilePaths, path)
-	resp := s.getFileResps[0]
-	s.getFileResps = s.getFileResps[1:]
-	return resp.value()
+func (cl *client) Delete(name string) error {
+	cl.register("Delete", name)
+	return nil
 }
 
-func (s *srv) CreateContainerFile(name, path string, args lxd.ContainerFileArgs) error {
-	if len(s.createFileErrors) == 0 {
-		panic("cannot create file " + path)
+// container implements lxdclient.Container for testing purposes.
+type container struct {
+	lxdclient.Container
+
+	client *client
+
+	name    string
+	addr    string
+	started bool
+}
+
+func (c *container) register(name string, args ...string) {
+	name = fmt.Sprintf("(%s).%s", c.name, name)
+	c.client.register(name, args...)
+}
+
+func (c *container) Name() string {
+	return c.name
+}
+
+func (c *container) Addr() (string, error) {
+	c.register("Addr")
+	if c.client.addrError != nil {
+		return "", c.client.addrError
 	}
-	if s.createFileName == "" {
-		s.createFileName = name
+	return c.addr, nil
+}
+
+func (c *container) Started() bool {
+	c.register("Started")
+	return c.started
+}
+
+func (c *container) Start() error {
+	c.register("Start")
+	if c.client.startError != nil {
+		return c.client.startError
 	}
-	if s.createFileName != name {
-		panic("creating files from two different containers in the same request")
+	c.started = true
+	return nil
+}
+
+func (c *container) Stop() error {
+	c.register("Stop")
+	if c.client.stopError != nil {
+		return c.client.stopError
 	}
-	s.createFilePaths = append(s.createFilePaths, path)
-	s.createFileArgs = append(s.createFileArgs, args)
-	err := s.createFileErrors[0]
-	s.createFileErrors = s.createFileErrors[1:]
+	c.started = false
+	return nil
+}
+
+func (c *container) WriteFile(path string, data []byte) (err error) {
+	c.register("WriteFile", path, string(data))
+	if len(c.client.writeFileErrors) > 0 {
+		err = c.client.writeFileErrors[0]
+		c.client.writeFileErrors = c.client.writeFileErrors[1:]
+	}
 	return err
 }
 
-func (s *srv) ExecContainer(name string, req api.ContainerExecPost, args *lxd.ContainerExecArgs) (*lxd.Operation, error) {
-	if s.execName == "" {
-		s.execName = name
+func (c *container) Exec(command string, args ...string) (output string, err error) {
+	cmd := append([]string{command}, args...)
+	c.register("Exec", cmd...)
+	if len(c.client.execErrors) > 0 {
+		err = c.client.execErrors[0]
+		c.client.execErrors = c.client.execErrors[1:]
 	}
-	if s.execName != name {
-		panic("executing commands in two different containers in the same request")
-	}
-	s.execReqs = append(s.execReqs, req)
-	s.execArgs = append(s.execArgs, args)
-	args.Stdout.Write([]byte("test output"))
-	args.Stderr.Write([]byte("test error"))
-	if len(s.execErrors) != 0 {
-		err := s.execErrors[0]
-		s.execErrors = s.execErrors[1:]
-		if err != nil {
-			return nil, err
-		}
-	}
-	if s.execMetadata == nil {
-		s.execMetadata = map[string]interface{}{
-			"return": float64(0),
-		}
-	}
-	return newOp(s.execOpError, s.execMetadata), nil
+	return c.client.execOutput, err
 }
 
-func (s *srv) DeleteContainer(name string) (*lxd.Operation, error) {
-	s.deleteName = name
-	return newOp(nil, nil), nil
-}
-
-// newOp creates and return a new LXD operation whose Wait method returns the
-// provided error and metadata.
-func newOp(err error, metadata map[string]interface{}) *lxd.Operation {
-	op := lxd.Operation{
-		Operation: api.Operation{
-			Metadata:   metadata,
-			StatusCode: api.Success,
-		},
-	}
-	if err != nil {
-		op.StatusCode = api.Failure
-		op.Err = err.Error()
-	}
-	return &op
-}
-
-// fileResponse is used to build responses to
-// lxd.ContainerServer.CreateContainerFile calls.
-type fileResponse struct {
-	isFile bool
-	hasErr bool
-}
-
-func (r fileResponse) value() (io.ReadCloser, *lxd.ContainerFileResponse, error) {
-	if r.hasErr {
-		return nil, nil, errors.New("no such file")
-	}
-	resp := &lxd.ContainerFileResponse{
-		UID:  42,
-		GID:  47,
-		Type: "directory",
-	}
-	if r.isFile {
-		resp.Type = "file"
-	}
-	return nil, resp, nil
-}
-
-// sleeper is used to patch time.Sleep.
-type sleeper struct {
-	c         *qt.C
-	callCount int
-}
-
-func (s *sleeper) sleep(d time.Duration) {
-	s.callCount++
-	s.c.Assert(d, qt.Equals, 100*time.Millisecond)
-}
-
-// createRequest returns a create request for a container with the given name.
-func createRequest(name string) api.ContainersPost {
-	return api.ContainersPost{
-		Name: name,
-		Source: api.ContainerSource{
-			Type:  "image",
-			Alias: "termserver",
-		},
-		ContainerPut: api.ContainerPut{
-			Profiles: []string{"default", "termserver-limited"},
-		},
-	}
-}
-
-// patchSleep patches the api.sleep variable so that it is possible to avoid
-// sleeping in tests.
-func patchSleep(f func(d time.Duration)) (restore func()) {
-	original := *lxdutils.Sleep
-	*lxdutils.Sleep = f
-	return func() {
-		*lxdutils.Sleep = original
-	}
+func call(name string, args ...string) []string {
+	return append([]string{name}, args...)
 }
 
 func mustNewMacaroon(root string) *macaroon.Macaroon {
