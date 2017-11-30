@@ -1,6 +1,9 @@
 // Copyright 2017 Canonical Ltd.
 // Licensed under the AGPLv3, see LICENCE file for details.
 
-package lxdutils
+package lxdclient
 
-var Sleep = &sleep
+var (
+	LXDConnectUnix = &lxdConnectUnix
+	Sleep          = &sleep
+)

@@ -105,12 +105,13 @@ func handleStart(conn wstransport.Conn, image string, info *juju.Info, creds *ju
 		return "", conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
 	log.Debugw("connecting to the LXD server")
-	lxdsrv, err := lxdutils.Connect()
+	lxdclient, err := lxdutils.Connect()
 	if err != nil {
 		return "", conn.Error(errgo.Mask(err))
 	}
+	lxdclient = metrics.InstrumentLXDClient(lxdclient)
 	log.Debugw("setting up the LXD instance", "image", image)
-	addr, err = lxdutils.Ensure(lxdsrv, image, info, creds)
+	addr, err = lxdutils.Ensure(lxdclient, image, info, creds)
 	if err != nil {
 		return "", conn.Error(errgo.Mask(err))
 	}
