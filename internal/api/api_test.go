@@ -30,11 +30,7 @@ var registerTests = []struct {
 func TestRegister(t *testing.T) {
 	c := qt.New(t)
 	// Set up the WebSocket server.
-	mux := http.NewServeMux()
-	jujuAddrs, jujuCert, imageName := []string{"1.2.3.4"}, "cert", "image"
-	err := api.Register(mux, jujuAddrs, jujuCert, imageName)
-	c.Assert(err, qt.Equals, nil)
-	server := httptest.NewServer(mux)
+	server := httptest.NewServer(setupMux())
 	defer server.Close()
 
 	send := func(op apiparams.Operation) string {
@@ -55,6 +51,19 @@ func TestRegister(t *testing.T) {
 			c.Assert(send(test.op), qt.Equals, test.expectedError)
 		})
 	}
+}
+
+// setupMux creates and returns a mux with the API registered.
+func setupMux() *http.ServeMux {
+	mux := http.NewServeMux()
+	api.Register(mux, api.JujuParams{
+		Addrs: []string{"1.2.3.4"},
+		Cert:  "cert",
+	}, api.LXDParams{
+		ImageName: "image",
+		Profiles:  []string{"default", "termserver"},
+	})
+	return mux
 }
 
 // wsURL returns a WebSocket URL from the given HTTP URL.
