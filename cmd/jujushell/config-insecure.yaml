@@ -1,7 +1,8 @@
 port: 8047
-juju-addrs: ["10.0.42.81:17070"]
+juju-addrs: []
 log-level: debug
 image-name: "termserver"
+profiles: ["default"]
 juju-cert: |
   -----BEGIN CERTIFICATE-----
   MIIDrDCCApSgAwIBAgIUbkXNpIa03OZqEEo+8oruxwgT2YAwDQYJKoZIhvcNAQEL
