@@ -39,7 +39,7 @@ func Connect() (lxdclient.Client, error) {
 // Ensure ensures that an LXD is available for the given user, and returns its
 // address. If the container is not available, one is created using the given
 // image, which is assumed to have Juju already installed.
-func Ensure(client lxdclient.Client, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+func Ensure(client lxdclient.Client, image string, profiles []string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	name := containerName(info.User)
 	defer func() {
 		if err == nil {
@@ -87,7 +87,7 @@ func Ensure(client lxdclient.Client, image string, info *juju.Info, creds *juju.
 		// Create and start the container if required.
 		if c == nil {
 			log.Debugw("creating container", "container", name, "image", image)
-			c, err = client.Create(image, name, "default", "termserver-limited")
+			c, err = client.Create(image, name, profiles...)
 			if err != nil {
 				return nil, errgo.Mask(err)
 			}
