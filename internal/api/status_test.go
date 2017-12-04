@@ -12,17 +12,12 @@ import (
 	qt "github.com/frankban/quicktest"
 
 	"github.com/CanonicalLtd/jujushell/apiparams"
-	"github.com/CanonicalLtd/jujushell/internal/api"
 )
 
 func TestStatusHandler(t *testing.T) {
 	c := qt.New(t)
 	// Set up the WebSocket server.
-	mux := http.NewServeMux()
-	jujuAddrs, jujuCert, imageName := []string{"1.2.3.4"}, "cert", "image"
-	err := api.Register(mux, jujuAddrs, jujuCert, imageName)
-	c.Assert(err, qt.Equals, nil)
-	server := httptest.NewServer(mux)
+	server := httptest.NewServer(setupMux())
 	defer server.Close()
 
 	// Exercise the status handler.

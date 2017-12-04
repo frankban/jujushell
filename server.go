@@ -12,9 +12,13 @@ import (
 // NewServer returns a new handler that handles juju shell requests.
 func NewServer(p Params) (http.Handler, error) {
 	mux := http.NewServeMux()
-	if err := api.Register(mux, p.JujuAddrs, p.JujuCert, p.ImageName); err != nil {
-		return nil, err
-	}
+	api.Register(mux, api.JujuParams{
+		Addrs: p.JujuAddrs,
+		Cert:  p.JujuCert,
+	}, api.LXDParams{
+		ImageName: p.ImageName,
+		Profiles:  p.Profiles,
+	})
 	return mux, nil
 }
 
@@ -26,4 +30,6 @@ type Params struct {
 	JujuAddrs []string
 	// JujuCert holds the controller CA certificate in PEM format.
 	JujuCert string
+	// Profiles holds the LXD profiles to use when launching containers.
+	Profiles []string `yaml:"profiles"`
 }

@@ -23,16 +23,30 @@ import (
 var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, jujuAddrs []string, jujuCert, image string) error {
-	// TODO: validate jujuAddrs.
-	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(jujuAddrs, jujuCert, image)))
+func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams) {
+	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd)))
 	mux.HandleFunc("/status/", statusHandler)
 	mux.Handle("/metrics", promhttp.Handler())
-	return nil
+}
+
+// JujuParams holds parameters for interacting with the Juju controller.
+type JujuParams struct {
+	// Addrs holds the addresses of the current Juju controller.
+	Addrs []string
+	// Cert holds the controller CA certificate in PEM format.
+	Cert string
+}
+
+// LXDParams holds parameters used for creating LXD containers.
+type LXDParams struct {
+	// ImageName holds the name of the LXD image to use.
+	ImageName string
+	// Profiles holds the LXD profile names.
+	Profiles []string `yaml:"profiles"`
 }
 
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
+func serveWebSocket(juju JujuParams, lxd LXDParams) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection.
 		conn, err := wstransport.Upgrade(w, r)
@@ -45,13 +59,13 @@ func serveWebSocket(jujuAddrs []string, jujuCert, image string) http.Handler {
 		log.Infow("WebSocket connection established", "remote-addr", r.RemoteAddr)
 
 		// Start serving requests.
-		info, creds, err := handleLogin(conn, jujuAddrs, jujuCert)
+		info, creds, err := handleLogin(conn, juju.Addrs, juju.Cert)
 		if err != nil {
 			log.Infow("cannot authenticate the user", "err", err)
 			return
 		}
 		log.Infow("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
-		addr, err := handleStart(conn, image, info, creds)
+		addr, err := handleStart(conn, lxd, info, creds)
 		if err != nil {
 			log.Infow("cannot start user session", "user", info.User, "err", err)
 			return
@@ -93,10 +107,10 @@ func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string) (in
 
 // handleStart ensures an LXD is available for the given username, by checking
 // whether one container is already started or, if not, creating one based on
-// the provided image name. Example request/response:
+// the provided LXD parameters. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn wstransport.Conn, image string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+func handleStart(conn wstransport.Conn, lxd LXDParams, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
 		return "", conn.Error(errgo.Mask(err))
@@ -110,8 +124,8 @@ func handleStart(conn wstransport.Conn, image string, info *juju.Info, creds *ju
 		return "", conn.Error(errgo.Mask(err))
 	}
 	lxdclient = metrics.InstrumentLXDClient(lxdclient)
-	log.Debugw("setting up the LXD instance", "image", image)
-	addr, err = lxdutils.Ensure(lxdclient, image, info, creds)
+	log.Debugw("setting up the LXD instance", "image", lxd.ImageName, "profiles", lxd.Profiles)
+	addr, err = lxdutils.Ensure(lxdclient, lxd.ImageName, lxd.Profiles, info, creds)
 	if err != nil {
 		return "", conn.Error(errgo.Mask(err))
 	}

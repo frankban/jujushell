@@ -27,6 +27,8 @@ type Config struct {
 	LogLevel zapcore.Level `yaml:"log-level"`
 	// Port holds the port on which the server will start listening.
 	Port int `yaml:"port"`
+	// Profiles holds the LXD profiles to use when launching containers.
+	Profiles []string `yaml:"profiles"`
 	// TLSCert and TLSKey hold TLS info for running the server.
 	TLSCert string `yaml:"tls-cert"`
 	TLSKey  string `yaml:"tls-key"`
@@ -65,6 +67,9 @@ func validate(c Config) error {
 	}
 	if c.Port <= 0 {
 		missing = append(missing, "port")
+	}
+	if len(c.Profiles) == 0 {
+		missing = append(missing, "profiles")
 	}
 	if len(missing) != 0 {
 		return fmt.Errorf("missing fields: %s", strings.Join(missing, ", "))

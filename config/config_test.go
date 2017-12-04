@@ -28,6 +28,7 @@ var readTests = []struct {
 		"juju-cert":  "my Juju cert",
 		"log-level":  "debug",
 		"port":       8047,
+		"profiles":   []string{"default", "termserver"},
 	}),
 	expectedConfig: &config.Config{
 		ImageName: "myimage",
@@ -35,6 +36,7 @@ var readTests = []struct {
 		JujuCert:  "my Juju cert",
 		LogLevel:  zapcore.DebugLevel,
 		Port:      8047,
+		Profiles:  []string{"default", "termserver"},
 	},
 }, {
 	about: "valid jaas config",
@@ -43,12 +45,14 @@ var readTests = []struct {
 		"juju-addrs": []string{"jimm.jujucharms.com:443"},
 		"log-level":  "debug",
 		"port":       8047,
+		"profiles":   []string{"default"},
 	}),
 	expectedConfig: &config.Config{
 		ImageName: "myimage",
 		JujuAddrs: []string{"jimm.jujucharms.com:443"},
 		LogLevel:  zapcore.DebugLevel,
 		Port:      8047,
+		Profiles:  []string{"default"},
 	},
 }, {
 	about:         "unreadable config",
@@ -56,7 +60,7 @@ var readTests = []struct {
 	expectedError: `cannot parse ".*": yaml: unmarshal errors:\n.*`,
 }, {
 	about:         "invalid config",
-	expectedError: `invalid configuration at ".*": missing fields: image-name, juju-addrs, port`,
+	expectedError: `invalid configuration at ".*": missing fields: image-name, juju-addrs, port, profiles`,
 }}
 
 func TestRead(t *testing.T) {

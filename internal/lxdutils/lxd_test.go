@@ -45,7 +45,7 @@ var ensureTests = []struct {
 	expectedError: "bad wolf",
 	expectedCalls: [][]string{
 		call("All"),
-		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver"),
 		// Cleaning up.
 		call("Get", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who"),
 	},
@@ -57,7 +57,7 @@ var ensureTests = []struct {
 	expectedError: "bad wolf",
 	expectedCalls: [][]string{
 		call("All"),
-		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver"),
 		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
 		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Start"),
 		// Cleaning up.
@@ -73,7 +73,7 @@ var ensureTests = []struct {
 	expectedError: "bad wolf",
 	expectedCalls: [][]string{
 		call("All"),
-		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver-limited"),
+		call("Create", "termserver", "ts-b7adf77905f540249517ca164255899e9ad1e2ac-who", "default", "termserver"),
 		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Started"),
 		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Start"),
 		call("(ts-b7adf77905f540249517ca164255899e9ad1e2ac-who).Addr"),
@@ -343,7 +343,7 @@ var ensureTests = []struct {
 	expectedAddr: "1.2.3.4",
 	expectedCalls: [][]string{
 		call("All"),
-		call("Create", "termserver", "ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k", "default", "termserver-limited"),
+		call("Create", "termserver", "ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k", "default", "termserver"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Started"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Start"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Addr"),
@@ -378,7 +378,7 @@ func TestEnsure(t *testing.T) {
 				name: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
 				addr: "1.2.3.7",
 			}}
-			addr, err := lxdutils.Ensure(test.client, "termserver", test.info, test.creds)
+			addr, err := lxdutils.Ensure(test.client, "termserver", []string{"default", "termserver"}, test.info, test.creds)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				c.Assert(addr, qt.Equals, "")
