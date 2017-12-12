@@ -11,13 +11,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/errgo.v1"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
-	"github.com/CanonicalLtd/jujushell/internal/juju"
-	"github.com/CanonicalLtd/jujushell/internal/logging"
-	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
-	"github.com/CanonicalLtd/jujushell/internal/metrics"
-	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
-	"github.com/CanonicalLtd/jujushell/internal/wstransport"
+	"github.com/juju/jujushell/apiparams"
+	"github.com/juju/jujushell/internal/juju"
+	"github.com/juju/jujushell/internal/logging"
+	"github.com/juju/jujushell/internal/lxdutils"
+	"github.com/juju/jujushell/internal/metrics"
+	"github.com/juju/jujushell/internal/wsproxy"
+	"github.com/juju/jujushell/internal/wstransport"
 )
 
 var log = logging.Log()

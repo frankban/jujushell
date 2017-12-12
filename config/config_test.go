@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 
-	"github.com/CanonicalLtd/jujushell/config"
+	"github.com/juju/jujushell/config"
 )
 
 var readTests = []struct {

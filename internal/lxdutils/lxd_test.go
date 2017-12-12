@@ -11,9 +11,9 @@ import (
 	qt "github.com/frankban/quicktest"
 	macaroon "gopkg.in/macaroon.v1"
 
-	"github.com/CanonicalLtd/jujushell/internal/juju"
-	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
-	"github.com/CanonicalLtd/jujushell/internal/lxdutils"
+	"github.com/juju/jujushell/internal/juju"
+	"github.com/juju/jujushell/internal/lxdclient"
+	"github.com/juju/jujushell/internal/lxdutils"
 )
 
 var ensureTests = []struct {

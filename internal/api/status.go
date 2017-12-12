@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
+	"github.com/juju/jujushell/apiparams"
 )
 
 // statusHandler is used to check whether the server is ready.

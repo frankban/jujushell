@@ -10,8 +10,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
-	"github.com/CanonicalLtd/jujushell/internal/wstransport"
+	"github.com/juju/jujushell/internal/lxdclient"
+	"github.com/juju/jujushell/internal/wstransport"
 )
 
 // namespace is used as a prefix for all jujushell related metrics.

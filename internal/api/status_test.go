@@ -11,7 +11,7 @@ import (
 
 	qt "github.com/frankban/quicktest"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
+	"github.com/juju/jujushell/apiparams"
 )
 
 func TestStatusHandler(t *testing.T) {

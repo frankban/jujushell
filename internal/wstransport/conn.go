@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 	errgo "gopkg.in/errgo.v1"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
-	"github.com/CanonicalLtd/jujushell/internal/logging"
+	"github.com/juju/jujushell/apiparams"
+	"github.com/juju/jujushell/internal/logging"
 )
 
 var log = logging.Log()

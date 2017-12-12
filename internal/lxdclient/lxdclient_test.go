@@ -15,7 +15,7 @@ import (
 	lxd "github.com/lxc/lxd/client"
 	lxdapi "github.com/lxc/lxd/shared/api"
 
-	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
+	"github.com/juju/jujushell/internal/lxdclient"
 )
 
 var newTests = []struct {

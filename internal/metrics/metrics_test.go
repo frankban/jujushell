@@ -16,9 +16,9 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
-	"github.com/CanonicalLtd/jujushell/internal/metrics"
-	"github.com/CanonicalLtd/jujushell/internal/wstransport"
+	"github.com/juju/jujushell/internal/lxdclient"
+	"github.com/juju/jujushell/internal/metrics"
+	"github.com/juju/jujushell/internal/wstransport"
 )
 
 func TestInstrumentHandler(t *testing.T) {

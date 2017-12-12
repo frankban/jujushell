@@ -13,9 +13,9 @@ import (
 	"golang.org/x/sync/singleflight"
 	"gopkg.in/errgo.v1"
 
-	"github.com/CanonicalLtd/jujushell/internal/juju"
-	"github.com/CanonicalLtd/jujushell/internal/logging"
-	"github.com/CanonicalLtd/jujushell/internal/lxdclient"
+	"github.com/juju/jujushell/internal/juju"
+	"github.com/juju/jujushell/internal/logging"
+	"github.com/juju/jujushell/internal/lxdclient"
 )
 
 const (
