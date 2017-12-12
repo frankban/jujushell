@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/gorilla/websocket"
@@ -162,10 +163,27 @@ func (cl *client) Delete(name string) error {
 }
 
 func checkMetrics(c *qt.C, url, substr string, expectedLines []string) {
-	resp, err := http.DefaultClient.Get(url)
-	c.Assert(err, qt.Equals, nil)
-	defer resp.Body.Close()
-	lines := linesContaining(c, resp.Body, substr)
+	timeout := time.After(5 * time.Second)
+	tick := time.Tick(100 * time.Millisecond)
+	lines := make([]string, 0, len(expectedLines))
+	getLines := func() []string {
+		resp, err := http.DefaultClient.Get(url)
+		c.Assert(err, qt.Equals, nil)
+		defer resp.Body.Close()
+		return linesContaining(c, resp.Body, substr)
+	}
+loop:
+	for {
+		select {
+		case <-timeout:
+			break loop
+		case <-tick:
+			lines = getLines()
+			if len(lines) == len(expectedLines) {
+				break loop
+			}
+		}
+	}
 	c.Assert(lines, qt.DeepEquals, expectedLines)
 }
 
