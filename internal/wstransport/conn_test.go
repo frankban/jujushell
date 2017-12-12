@@ -13,8 +13,8 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/gorilla/websocket"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
-	"github.com/CanonicalLtd/jujushell/internal/wstransport"
+	"github.com/juju/jujushell/apiparams"
+	"github.com/juju/jujushell/internal/wstransport"
 )
 
 func TestConnError(t *testing.T) {

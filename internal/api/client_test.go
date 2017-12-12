@@ -14,8 +14,8 @@ import (
 
 	qt "github.com/frankban/quicktest"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
-	"github.com/CanonicalLtd/jujushell/internal/api"
+	"github.com/juju/jujushell/apiparams"
+	"github.com/juju/jujushell/internal/api"
 )
 
 func TestWaitReady(t *testing.T) {

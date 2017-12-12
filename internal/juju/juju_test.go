@@ -19,7 +19,7 @@ import (
 	macaroon "gopkg.in/macaroon.v1"
 	"gopkg.in/yaml.v2"
 
-	"github.com/CanonicalLtd/jujushell/internal/juju"
+	"github.com/juju/jujushell/internal/juju"
 )
 
 var (

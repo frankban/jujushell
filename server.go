@@ -6,7 +6,7 @@ package jujushell
 import (
 	"net/http"
 
-	"github.com/CanonicalLtd/jujushell/internal/api"
+	"github.com/juju/jujushell/internal/api"
 )
 
 // NewServer returns a new handler that handles juju shell requests.

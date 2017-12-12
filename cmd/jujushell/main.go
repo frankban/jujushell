@@ -14,9 +14,9 @@ import (
 
 	"gopkg.in/errgo.v1"
 
-	"github.com/CanonicalLtd/jujushell"
-	"github.com/CanonicalLtd/jujushell/config"
-	"github.com/CanonicalLtd/jujushell/internal/logging"
+	"github.com/juju/jujushell"
+	"github.com/juju/jujushell/config"
+	"github.com/juju/jujushell/internal/logging"
 )
 
 // main starts the Juju Shell server.

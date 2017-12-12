@@ -10,7 +10,7 @@ import (
 
 	errgo "gopkg.in/errgo.v1"
 
-	"github.com/CanonicalLtd/jujushell/apiparams"
+	"github.com/juju/jujushell/apiparams"
 )
 
 const retries = 100

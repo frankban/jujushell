@@ -13,7 +13,7 @@ import (
 	qt "github.com/frankban/quicktest"
 	"github.com/gorilla/websocket"
 
-	"github.com/CanonicalLtd/jujushell/internal/wsproxy"
+	"github.com/juju/jujushell/internal/wsproxy"
 )
 
 func TestCopy(t *testing.T) {
