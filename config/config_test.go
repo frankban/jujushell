@@ -55,12 +55,54 @@ var readTests = []struct {
 		Profiles:  []string{"default"},
 	},
 }, {
+	about: "valid let's encrypt config",
+	content: mustMarshalYAML(map[string]interface{}{
+		"dns-name":   "shell.example.com",
+		"image-name": "myimage",
+		"juju-addrs": []string{"1.2.3.4", "4.3.2.1"},
+		"log-level":  "debug",
+		"port":       443,
+		"profiles":   []string{"default", "termserver"},
+	}),
+	expectedConfig: &config.Config{
+		DNSName:   "shell.example.com",
+		ImageName: "myimage",
+		JujuAddrs: []string{"1.2.3.4", "4.3.2.1"},
+		LogLevel:  zapcore.DebugLevel,
+		Port:      443,
+		Profiles:  []string{"default", "termserver"},
+	},
+}, {
 	about:         "unreadable config",
 	content:       []byte("not a yaml"),
 	expectedError: `cannot parse ".*": yaml: unmarshal errors:\n.*`,
 }, {
 	about:         "invalid config",
 	expectedError: `invalid configuration at ".*": missing fields: image-name, juju-addrs, port, profiles`,
+}, {
+	about: "invalid config for let's encrypt: keys specified",
+	content: mustMarshalYAML(map[string]interface{}{
+		"dns-name":   "shell.example.com",
+		"image-name": "myimage",
+		"juju-addrs": []string{"1.2.3.4", "4.3.2.1"},
+		"log-level":  "debug",
+		"port":       443,
+		"profiles":   []string{"default", "termserver"},
+		"tls-cert":   "TLS cert",
+		"tls-key":    "TLS key",
+	}),
+	expectedError: `invalid configuration at ".*": cannot specify both DNS name for Let's Encrypt and TLS keys at the same time`,
+}, {
+	about: "invalid config for let's encrypt: bad port",
+	content: mustMarshalYAML(map[string]interface{}{
+		"dns-name":   "shell.example.com",
+		"image-name": "myimage",
+		"juju-addrs": []string{"1.2.3.4", "4.3.2.1"},
+		"log-level":  "debug",
+		"port":       4247,
+		"profiles":   []string{"default", "termserver"},
+	}),
+	expectedError: `invalid configuration at ".*": cannot use a port different than 443 with Let's Encrypt`,
 }}
 
 func TestRead(t *testing.T) {

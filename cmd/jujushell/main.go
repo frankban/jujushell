@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"golang.org/x/crypto/acme/autocert"
 	"gopkg.in/errgo.v1"
 
 	"github.com/juju/jujushell"
@@ -55,7 +56,7 @@ func serve(configPath string) error {
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")
 	}
-	tlsConf, err := tlsConfig(conf.TLSCert, conf.TLSKey)
+	tlsConf, err := tlsConfig(conf.TLSCert, conf.TLSKey, conf.DNSName)
 	if err != nil {
 		return errgo.Notef(err, "cannot retrieve TLS configuration")
 	}
@@ -70,10 +71,21 @@ func serve(configPath string) error {
 	return server.ListenAndServe()
 }
 
-// tlsConfig returns a TLS configuration for the given keys.
-func tlsConfig(cert, key string) (*tls.Config, error) {
+// tlsConfig returns a TLS configuration for the given keys and DNS name.
+// When the DNS name is not empty, Let's Encrypt is used to manage certs.
+func tlsConfig(cert, key, name string) (*tls.Config, error) {
 	if cert == "" && key == "" {
-		return nil, nil
+		if name == "" {
+			return nil, nil
+		}
+		manager := autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(name),
+			Cache:      autocert.DirCache("/tmp/certs"),
+		}
+		return &tls.Config{
+			GetCertificate: manager.GetCertificate,
+		}, nil
 	}
 	c, err := tls.X509KeyPair([]byte(cert), []byte(key))
 	if err != nil {
