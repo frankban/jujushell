@@ -33,11 +33,10 @@ var newTests = []struct {
 }}
 
 func TestNew(t *testing.T) {
+	c := qt.New(t)
 	for _, test := range newTests {
-		t.Run(test.about, func(t *testing.T) {
-			c := qt.New(t)
-			restore := PatchLXDConnectUnix(c, test.srv, test.err)
-			defer restore()
+		c.Run(test.about, func(c *qt.C) {
+			patchLXDConnectUnix(c, test.srv, test.err)
 			client, err := lxdclient.New("testing-socket")
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
@@ -191,11 +190,10 @@ var clientTests = []struct {
 }}
 
 func TestClient(t *testing.T) {
+	c := qt.New(t)
 	for _, test := range clientTests {
-		t.Run(test.about, func(t *testing.T) {
-			c := qt.New(t)
-			restore := PatchLXDConnectUnix(c, test.srv, nil)
-			defer restore()
+		c.Run(test.about, func(c *qt.C) {
+			patchLXDConnectUnix(c, test.srv, nil)
 			client, err := lxdclient.New("testing-socket")
 			c.Assert(err, qt.Equals, nil)
 			test.test(c, client, test.srv)
@@ -223,8 +221,7 @@ var containerTests = []struct {
 		s := &sleeper{
 			c: c,
 		}
-		restore := patchSleep(s.sleep)
-		defer restore()
+		c.Patch(lxdclient.Sleep, s.sleep)
 		addr, err := container.Addr()
 		c.Assert(err, qt.ErrorMatches, `cannot get state for container "my-container": bad wolf`)
 		c.Assert(addr, qt.Equals, "")
@@ -238,8 +235,7 @@ var containerTests = []struct {
 		s := &sleeper{
 			c: c,
 		}
-		restore := patchSleep(s.sleep)
-		defer restore()
+		c.Patch(lxdclient.Sleep, s.sleep)
 		addr, err := container.Addr()
 		c.Assert(err, qt.ErrorMatches, `cannot find address for "my-container"`)
 		c.Assert(addr, qt.Equals, "")
@@ -267,8 +263,7 @@ var containerTests = []struct {
 		s := &sleeper{
 			c: c,
 		}
-		restore := patchSleep(s.sleep)
-		defer restore()
+		c.Patch(lxdclient.Sleep, s.sleep)
 		addr, err := container.Addr()
 		c.Assert(err, qt.Equals, nil)
 		c.Assert(addr, qt.Equals, "1.2.3.6")
@@ -515,11 +510,10 @@ var containerTests = []struct {
 }}
 
 func TestContainer(t *testing.T) {
+	c := qt.New(t)
 	for _, test := range containerTests {
-		t.Run(test.about, func(t *testing.T) {
-			c := qt.New(t)
-			restore := PatchLXDConnectUnix(c, test.srv, nil)
-			defer restore()
+		c.Run(test.about, func(c *qt.C) {
+			patchLXDConnectUnix(c, test.srv, nil)
 			test.srv.getContainersResult = []lxdapi.Container{{
 				Name:   "my-container",
 				Status: test.status,
@@ -720,26 +714,12 @@ func createContainerFileArgsComparer(a, b io.ReadSeeker) bool {
 	return (a != nil && b != nil) || a == b
 }
 
-func PatchLXDConnectUnix(c *qt.C, srv lxd.ContainerServer, err error) (restore func()) {
-	original := *lxdclient.LXDConnectUnix
-	*lxdclient.LXDConnectUnix = func(path string, args *lxd.ConnectionArgs) (lxd.ContainerServer, error) {
+func patchLXDConnectUnix(c *qt.C, srv lxd.ContainerServer, err error) {
+	c.Patch(lxdclient.LXDConnectUnix, func(path string, args *lxd.ConnectionArgs) (lxd.ContainerServer, error) {
 		c.Assert(path, qt.Equals, "testing-socket")
 		c.Assert(args, qt.IsNil)
 		return srv, err
-	}
-	return func() {
-		*lxdclient.LXDConnectUnix = original
-	}
-}
-
-// patchSleep patches the api.sleep variable so that it is possible to avoid
-// sleeping in tests.
-func patchSleep(f func(d time.Duration)) (restore func()) {
-	original := *lxdclient.Sleep
-	*lxdclient.Sleep = f
-	return func() {
-		*lxdclient.Sleep = original
-	}
+	})
 }
 
 // sleeper is used to patch time.Sleep.

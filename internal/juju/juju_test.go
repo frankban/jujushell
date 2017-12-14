@@ -88,9 +88,9 @@ var authenticateTests = []struct {
 }}
 
 func TestAuthenticate(t *testing.T) {
+	c := qt.New(t)
 	for _, test := range authenticateTests {
-		t.Run(test.about, func(t *testing.T) {
-			c := qt.New(t)
+		c.Run(test.about, func(c *qt.C) {
 			conn := &connection{
 				username:       test.apiOpenUsername,
 				controllerUUID: test.apiOpenControllerUUID,
@@ -108,8 +108,7 @@ func TestAuthenticate(t *testing.T) {
 			if test.username != "" {
 				expectedInfo.Tag = names.NewUserTag(test.username)
 			}
-			restore := patchAPIOpen(c, conn, apiOpenError, expectedInfo, test.macaroons)
-			defer restore()
+			patchAPIOpen(c, conn, apiOpenError, expectedInfo, test.macaroons)
 			info, err := juju.Authenticate(addrs, &juju.Credentials{
 				Username:  test.username,
 				Password:  test.password,
@@ -224,9 +223,8 @@ func TestMarshalControllers(t *testing.T) {
 
 // patchAPIOpen patches the juju.apiOpen variable so that it is possible
 // to simulate different API connection scenarios.
-func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Info, expectedMacaroons map[string]macaroon.Slice) (restore func()) {
-	original := *juju.APIOpen
-	*juju.APIOpen = func(info *api.Info, opts api.DialOpts) (api.Connection, error) {
+func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Info, expectedMacaroons map[string]macaroon.Slice) {
+	apiOpen := func(info *api.Info, opts api.DialOpts) (api.Connection, error) {
 		c.Assert(info.Addrs, qt.DeepEquals, addrs)
 		c.Assert(info.CACert, qt.Equals, cert)
 		if info.Tag != nil {
@@ -244,9 +242,7 @@ func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Inf
 		}
 		return conn, err
 	}
-	return func() {
-		*juju.APIOpen = original
-	}
+	c.Patch(juju.APIOpen, apiOpen)
 }
 
 type connection struct {
