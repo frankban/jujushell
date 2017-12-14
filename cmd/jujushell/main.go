@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 
@@ -78,10 +79,14 @@ func tlsConfig(cert, key, name string) (*tls.Config, error) {
 		if name == "" {
 			return nil, nil
 		}
+		dir, err := cacheDir()
+		if err != nil {
+			return nil, errgo.Notef(err, "cannot cache certificates")
+		}
 		manager := autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache(dir),
 			HostPolicy: autocert.HostWhitelist(name),
-			Cache:      autocert.DirCache("/tmp/certs"),
+			Prompt:     autocert.AcceptTOS,
 		}
 		return &tls.Config{
 			GetCertificate: manager.GetCertificate,
@@ -94,4 +99,17 @@ func tlsConfig(cert, key, name string) (*tls.Config, error) {
 	return &tls.Config{
 		Certificates: []tls.Certificate{c},
 	}, nil
+}
+
+// cacheDir returns the directory to use for caching certificates.
+func cacheDir() (string, error) {
+	u, err := user.Current()
+	if err != nil {
+		return "", errgo.Mask(err)
+	}
+	dir := filepath.Join(u.HomeDir, "autocert-cache")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return "", errgo.Mask(err)
+	}
+	return dir, nil
 }
