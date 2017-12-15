@@ -83,8 +83,7 @@ func withServer(c *qt.C, handler http.Handler, expectedSleepCalls int, f func(ur
 	s := &sleeper{
 		c: c,
 	}
-	restore := patchSleep(s.sleep)
-	defer restore()
+	c.Patch(api.Sleep, s.sleep)
 	f(srv.URL)
 	c.Assert(s.callCount, qt.Equals, expectedSleepCalls)
 }
@@ -112,16 +111,6 @@ type sleeper struct {
 func (s *sleeper) sleep(d time.Duration) {
 	s.callCount++
 	s.c.Assert(d, qt.Equals, 100*time.Millisecond)
-}
-
-// patchSleep patches the api.sleep variable so that it is possible to avoid
-// sleeping in tests.
-func patchSleep(f func(d time.Duration)) (restore func()) {
-	original := *api.Sleep
-	*api.Sleep = f
-	return func() {
-		*api.Sleep = original
-	}
 }
 
 func mustMarshalJSON(v interface{}) string {

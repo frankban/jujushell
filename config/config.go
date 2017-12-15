@@ -16,6 +16,8 @@ import (
 
 // Config holds the server configuration.
 type Config struct {
+	// DNSName optionally hold the DNS name to use for Let's Encrypt.
+	DNSName string `yaml:"dns-name"`
 	// ImageName holds the name of the LXD image to use to create containers.
 	ImageName string `yaml:"image-name"`
 	// JujuAddrs holds the addresses of the current Juju controller.
@@ -29,7 +31,7 @@ type Config struct {
 	Port int `yaml:"port"`
 	// Profiles holds the LXD profiles to use when launching containers.
 	Profiles []string `yaml:"profiles"`
-	// TLSCert and TLSKey hold TLS info for running the server.
+	// TLSCert and TLSKey optionally hold TLS info for running the server.
 	TLSCert string `yaml:"tls-cert"`
 	TLSKey  string `yaml:"tls-key"`
 }
@@ -73,6 +75,14 @@ func validate(c Config) error {
 	}
 	if len(missing) != 0 {
 		return fmt.Errorf("missing fields: %s", strings.Join(missing, ", "))
+	}
+	if c.DNSName != "" {
+		if c.TLSCert != "" || c.TLSKey != "" {
+			return fmt.Errorf("cannot specify both DNS name for Let's Encrypt and TLS keys at the same time")
+		}
+		if c.Port != 443 {
+			return fmt.Errorf("cannot use a port different than 443 with Let's Encrypt")
+		}
 	}
 	return nil
 }
