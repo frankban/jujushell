@@ -18,12 +18,20 @@ func NewServer(p Params) (http.Handler, error) {
 	}, api.LXDParams{
 		ImageName: p.ImageName,
 		Profiles:  p.Profiles,
+	}, api.GCParams{
+		Cap:  p.GCCap,
+		Days: p.GCDays,
 	})
 	return mux, nil
 }
 
 // Params holds parameters for running the server.
 type Params struct {
+	// GCCap holds the maximum number of container instances that can be
+	// created before starting the collection of less recently connected ones.
+	GCCap int
+	// GCDays holds the number of days from the last connection to a container.
+	GCDays int
 	// ImageName holds the name of the LXD image to use to create containers.
 	ImageName string
 	// JujuAddrs holds the addresses of the current Juju controller.
@@ -31,5 +39,5 @@ type Params struct {
 	// JujuCert holds the controller CA certificate in PEM format.
 	JujuCert string
 	// Profiles holds the LXD profiles to use when launching containers.
-	Profiles []string `yaml:"profiles"`
+	Profiles []string
 }

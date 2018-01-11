@@ -16,6 +16,7 @@ import (
 	"github.com/juju/jujushell/internal/logging"
 	"github.com/juju/jujushell/internal/lxdutils"
 	"github.com/juju/jujushell/internal/metrics"
+	"github.com/juju/jujushell/internal/store"
 	"github.com/juju/jujushell/internal/wsproxy"
 	"github.com/juju/jujushell/internal/wstransport"
 )
@@ -23,8 +24,9 @@ import (
 var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams) {
-	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd)))
+func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, gc GCParams) {
+	db := store.NewInMemory()
+	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd, gc, db)))
 	mux.HandleFunc("/status/", statusHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 }
@@ -45,8 +47,24 @@ type LXDParams struct {
 	Profiles []string `yaml:"profiles"`
 }
 
+// GCParams holds parameters for garbage collecting container instances.
+type GCParams struct {
+	// Cap holds the maximum number of container instances that can be created
+	// before starting the collection of less recently connected ones. A value
+	// of zero indicates that containers are destroyed as soon as all client
+	// connections are closed. Otherwise containers can be destroyed even if
+	// clients are still connected in the unlikely case in which there are no
+	// other more suitable instances to remove.
+	Cap int
+	// Days holds the number of days from the last connection to a container.
+	// After that period, not connected instances are removed regardless of
+	// GCCap. A value of zero disables the functionality, so that grabage
+	// collection is only executed according to GCCap.
+	Days int
+}
+
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(juju JujuParams, lxd LXDParams) http.Handler {
+func serveWebSocket(juju JujuParams, lxd LXDParams, gc GCParams, db storage) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection.
 		conn, err := wstransport.Upgrade(w, r)
@@ -71,6 +89,15 @@ func serveWebSocket(juju JujuParams, lxd LXDParams) http.Handler {
 			return
 		}
 		log.Infow("session started", "user", info.User, "address", addr)
+
+		// Handle adding the current connection to the store.
+		db.AddConn(addr)
+		defer func() {
+			db.RemoveConn(addr)
+			go collect(db, gc.Cap, gc.Days)
+		}()
+
+		// Handle the shell session.
 		if err = handleSession(conn, addr); err != nil {
 			log.Infow("session closed", "user", info.User, "address", addr, "err", err)
 			return
@@ -154,3 +181,16 @@ func handleSession(conn wstransport.Conn, addr string) error {
 
 // termserverPort holds the port on which the term server is listening.
 const termserverPort = 8765
+
+// storage defines the methods used for storing current connections.
+type storage interface {
+	// AddConn adds to the store a connection with the given id. Multiple
+	// connections can be added with the same id.
+	AddConn(id string) error
+
+	// RemoveConn removes the connection with the given id from the store.
+	RemoveConn(id string) error
+
+	// Info returns information about the connection with the given id.
+	Info(id string) (*store.Info, error)
+}

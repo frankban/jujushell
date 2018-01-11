@@ -41,32 +41,16 @@ func Connect() (lxdclient.Client, error) {
 // image, which is assumed to have Juju already installed.
 func Ensure(client lxdclient.Client, image string, profiles []string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
 	name := containerName(info.User)
+
 	defer func() {
 		if err == nil {
 			return
 		}
-		log.Debugw("cleaning up due to error", "original error", err.Error())
 		// If anything went wrong, just try to clean things up.
-		log.Debugw("cleaning up: retreiving container", "container", name)
-		c, cleanupErr := client.Get(name)
-		if cleanupErr != nil {
-			log.Debugw("cleaning up: cannot retreive container", "container", name, "error", cleanupErr.Error())
+		log.Debugw("cleaning up due to error", "original error", err.Error())
+		if cleanupErr := Cleanup(client, name); cleanupErr != nil {
+			log.Debugw("cannot clean up container", "container", name, "error", cleanupErr.Error())
 			return
-		}
-		// Ignore any errors from this point on, as there is nothing we can do.
-		if c.Started() {
-			log.Debugw("cleaning up: tearing down the shell session", "container", name)
-			if _, cleanupErr = c.Exec("su", "-", "ubuntu", "-c", "~/.session teardown"); cleanupErr != nil {
-				log.Debugw("cleaning up: cannot tear down the shell session", "container", name, "error", cleanupErr.Error())
-			}
-			log.Debugw("cleaning up: stopping container", "container", name)
-			if cleanupErr = c.Stop(); cleanupErr != nil {
-				log.Debugw("cleaning up: cannot stop the container", "container", name, "error", cleanupErr.Error())
-			}
-		}
-		log.Debugw("cleaning up: deleting container", "container", name)
-		if cleanupErr = client.Delete(name); cleanupErr != nil {
-			log.Debugw("cleaning up: cannot delete the container", "container", name, "error", cleanupErr.Error())
 		}
 	}()
 
@@ -120,6 +104,30 @@ func Ensure(client lxdclient.Client, image string, profiles []string, info *juju
 		return "", errgo.Mask(err)
 	}
 	return addr, nil
+}
+
+func Cleanup(client lxdclient.Client, name string) error {
+	log.Debugw("cleaning up: retreiving container", "container", name)
+	c, err := client.Get(name)
+	if err != nil {
+		return errgo.Notef(err, "cannot retreive container %q", name)
+	}
+	if c.Started() {
+		// Ignore any errors from this point on, as there is nothing we can do.
+		log.Debugw("cleaning up: tearing down the shell session", "container", name)
+		if _, err = c.Exec("su", "-", "ubuntu", "-c", "~/.session teardown"); err != nil {
+			log.Debugw("cleaning up: cannot tear down the shell session", "container", name, "error", err.Error())
+		}
+		log.Debugw("cleaning up: stopping container", "container", name)
+		if err = c.Stop(); err != nil {
+			log.Debugw("cleaning up: cannot stop the container", "container", name, "error", err.Error())
+		}
+	}
+	log.Debugw("cleaning up: deleting container", "container", name)
+	if err = client.Delete(name); err != nil {
+		return errgo.Notef(err, "cannot delete container %q", name)
+	}
+	return nil
 }
 
 // prepare sets up dynamic container contents, like the Juju data directory

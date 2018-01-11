@@ -18,6 +18,18 @@ import (
 type Config struct {
 	// DNSName optionally hold the DNS name to use for Let's Encrypt.
 	DNSName string `yaml:"dns-name"`
+	// GCCap holds the maximum number of container instances that can be
+	// created before starting the collection of less recently connected ones.
+	// A value of zero indicates that containers are destroyed as soon as all
+	// client connections are closed. Otherwise containers can be destroyed
+	// even if clients are still connected in the unlikely case in which there
+	// are no other more suitable instances to remove.
+	GCCap int `yaml:"gc-cap"`
+	// GCDays holds the number of days from the last connection to a container.
+	// After that period, not connected instances are removed regardless of
+	// GCCap. A value of zero disables the functionality, so that grabage
+	// collection is only executed according to GCCap.
+	GCDays int `yaml:"gc-days"`
 	// ImageName holds the name of the LXD image to use to create containers.
 	ImageName string `yaml:"image-name"`
 	// JujuAddrs holds the addresses of the current Juju controller.
@@ -83,6 +95,12 @@ func validate(c Config) error {
 		if c.Port != 443 {
 			return fmt.Errorf("cannot use a port different than 443 with Let's Encrypt")
 		}
+	}
+	if c.GCCap < 0 {
+		return fmt.Errorf("cannot use a negative value for gc-cap")
+	}
+	if c.GCDays < 0 {
+		return fmt.Errorf("cannot use a negative value for gc-days")
 	}
 	return nil
 }
