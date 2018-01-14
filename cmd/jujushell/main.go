@@ -77,8 +77,11 @@ func serve(configPath string) error {
 func tlsConfig(cert, key, name string) (*tls.Config, error) {
 	if cert == "" && key == "" {
 		if name == "" {
+			// Without certificates or DNS name, the server runs in insecure
+			// mode.
 			return nil, nil
 		}
+		// Use Let's Encrypt.
 		dir, err := cacheDir()
 		if err != nil {
 			return nil, errgo.Notef(err, "cannot cache certificates")
@@ -88,6 +91,8 @@ func tlsConfig(cert, key, name string) (*tls.Config, error) {
 			HostPolicy: autocert.HostWhitelist(name),
 			Prompt:     autocert.AcceptTOS,
 		}
+		// Open port 80 as well in this case, for the HTTP challenge.
+		go http.ListenAndServe(":http", manager.HTTPHandler(nil))
 		return &tls.Config{
 			GetCertificate: manager.GetCertificate,
 		}, nil
