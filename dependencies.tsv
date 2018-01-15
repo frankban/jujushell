@@ -41,10 +41,10 @@ github.com/rogpeppe/fastuuid	git	6724a57986aff9bff1a1770e9347036def7c89f6	2015-0
 go.uber.org/atomic	git	54f72d32435d760d5604f17a82e2435b28dc4ba5	2017-08-29T22:32:23Z
 go.uber.org/multierr	git	fb7d312c2c04c34f0ad621048bbb953b168f9ff6	2017-08-29T22:43:07Z
 go.uber.org/zap	git	7a9ca91fa627ed52c7ff4fcc95cd044dc2c82a51	2017-09-21T19:08:14Z
-golang.org/x/crypto	git	96846453c37f0876340a66a47f3f75b1f3a6cd2d	2017-04-21T04:31:20Z
+golang.org/x/crypto	git	13931e22f9e72ea58bb73048bc752b48c6d4d4ac	2018-01-12T20:08:14Z
 golang.org/x/net	git	ea47fc708ee3e20177f3ca3716217c4ab75942cb	2015-08-29T23:03:18Z
 golang.org/x/sync	git	8e0aa688b654ef28caa72506fa5ec8dba9fc7690	2017-09-27T05:41:12Z
-golang.org/x/sys	git	7a6e5648d140666db5d920909e082ca00a87ba2c	2017-02-01T05:12:45Z
+golang.org/x/sys	git	810d7000345868fc619eb81f46307107118f4ae1	2018-01-10T07:17:38Z
 gopkg.in/errgo.v1	git	442357a80af5c6bf9b6d51ae791a39c3421004f3	2016-12-22T12:58:16Z
 gopkg.in/juju/charm.v6-unstable	git	514bb811b021ebeb3e7ffcf1c267e9803968f59d	2017-07-28T19:41:00Z
 gopkg.in/juju/charmrepo.v2-unstable	git	e79aa298df89ea887c9bffec46063c24bfb730f7	2016-11-17T15:25:28Z
