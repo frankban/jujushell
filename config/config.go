@@ -18,7 +18,7 @@ import (
 type Config struct {
 	// AllowedUsers optionally holds a list of names of users allowed to use
 	// the service. An empty list means that all users who can authenticate
-	// against the controller are allowed. For external users, the name must
+	// against the controller are allowed. For external users, names must
 	// include the "@external" suffix.
 	AllowedUsers []string `yaml:"allowed-users"`
 	// DNSName optionally holds the DNS name to use for Let's Encrypt.
