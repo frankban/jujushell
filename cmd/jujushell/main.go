@@ -49,10 +49,11 @@ func serve(configPath string) error {
 	defer log.Sync()
 	log.Infow("starting the server", "log level", conf.LogLevel, "port", conf.Port)
 	handler, err := jujushell.NewServer(jujushell.Params{
-		ImageName: conf.ImageName,
-		JujuAddrs: conf.JujuAddrs,
-		JujuCert:  conf.JujuCert,
-		Profiles:  conf.Profiles,
+		AllowedUsers: conf.AllowedUsers,
+		ImageName:    conf.ImageName,
+		JujuAddrs:    conf.JujuAddrs,
+		JujuCert:     conf.JujuCert,
+		Profiles:     conf.Profiles,
 	})
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")

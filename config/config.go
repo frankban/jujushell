@@ -16,7 +16,12 @@ import (
 
 // Config holds the server configuration.
 type Config struct {
-	// DNSName optionally hold the DNS name to use for Let's Encrypt.
+	// AllowedUsers optionally holds a list of names of users allowed to use
+	// the service. An empty list means that all users who can authenticate
+	// against the controller are allowed. For external users, names must
+	// include the "@external" suffix.
+	AllowedUsers []string `yaml:"allowed-users"`
+	// DNSName optionally holds the DNS name to use for Let's Encrypt.
 	DNSName string `yaml:"dns-name"`
 	// ImageName holds the name of the LXD image to use to create containers.
 	ImageName string `yaml:"image-name"`
