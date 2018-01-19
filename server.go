@@ -18,6 +18,8 @@ func NewServer(p Params) (http.Handler, error) {
 	}, api.LXDParams{
 		ImageName: p.ImageName,
 		Profiles:  p.Profiles,
+	}, api.SvcParams{
+		AllowedUsers: p.AllowedUsers,
 	}, api.GCParams{
 		Cap:  p.GCCap,
 		Days: p.GCDays,
@@ -27,6 +29,8 @@ func NewServer(p Params) (http.Handler, error) {
 
 // Params holds parameters for running the server.
 type Params struct {
+	// AllowedUsers holds a list of names of users allowed to use the service.
+	AllowedUsers []string
 	// GCCap holds the maximum number of container instances that can be
 	// created before starting the collection of less recently connected ones.
 	GCCap int

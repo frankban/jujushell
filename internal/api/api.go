@@ -24,9 +24,9 @@ import (
 var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, gc GCParams) {
+func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, svc SvcParams, gc GCParams) {
 	db := store.NewInMemory()
-	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd, gc, db)))
+	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd, svc)))
 	mux.HandleFunc("/status/", statusHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 }
@@ -63,8 +63,14 @@ type GCParams struct {
 	Days int
 }
 
+// SvcParams holds parameters used for configuring and running the service.
+type SvcParams struct {
+	// AllowedUsers holds a list of names of users allowed to use the service.
+	AllowedUsers []string
+}
+
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(juju JujuParams, lxd LXDParams, gc GCParams, db storage) http.Handler {
+func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection.
 		conn, err := wstransport.Upgrade(w, r)
@@ -77,7 +83,7 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, gc GCParams, db storage) htt
 		log.Infow("WebSocket connection established", "remote-addr", r.RemoteAddr)
 
 		// Start serving requests.
-		info, creds, err := handleLogin(conn, juju.Addrs, juju.Cert)
+		info, creds, err := handleLogin(conn, juju.Addrs, juju.Cert, svc.AllowedUsers)
 		if err != nil {
 			log.Infow("cannot authenticate the user", "err", err)
 			return
@@ -107,11 +113,12 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, gc GCParams, db storage) htt
 }
 
 // handleLogin checks that the user has the right credentials for logging into
-// the Juju controller at the give addresses.
+// the Juju controller at the given addresses. If the provided list of allowed
+// users is not empty, this function also checks that the user is allowed.
 // Example request/response:
 //     --> {"operation": "login", "username": "admin", "password": "secret"}
 //     <-- {"code": "ok", "message": "logged in as \"admin\""}
-func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string) (info *juju.Info, creds *juju.Credentials, err error) {
+func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, allowedUsers []string) (info *juju.Info, creds *juju.Credentials, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
 		return nil, nil, conn.Error(errgo.Mask(err))
@@ -125,9 +132,12 @@ func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string) (in
 		Macaroons: req.Macaroons,
 	}
 	log.Debugw("authenticating to the controller", "addresses", jujuAddrs)
-	info, err = juju.Authenticate(jujuAddrs, creds, jujuCert)
+	info, err = jujuAuthenticate(jujuAddrs, creds, jujuCert)
 	if err != nil {
 		return nil, nil, conn.Error(errgo.Notef(err, "cannot log into juju"))
+	}
+	if !isUserAllowed(info.User, allowedUsers) {
+		return nil, nil, conn.Error(errgo.Newf("user %q is not allowed to access the service", info.User))
 	}
 	return info, creds, conn.OK("logged in as %q", info.User)
 }
@@ -193,4 +203,23 @@ type storage interface {
 
 	// Info returns information about the connection with the given id.
 	Info(id string) (*store.Info, error)
+}
+
+// isUserAllowed reports whether the provided user is allowed to access the
+// service.
+func isUserAllowed(user string, allowed []string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, u := range allowed {
+		if u == user {
+			return true
+		}
+	}
+	return false
+}
+
+// jujuAuthenticate is defined as a variable for testing.
+var jujuAuthenticate = func(addrs []string, creds *juju.Credentials, cert string) (*juju.Info, error) {
+	return juju.Authenticate(addrs, creds, cert)
 }

@@ -4,6 +4,7 @@
 package api
 
 var (
-	Sleep     = &sleep
-	WaitReady = waitReady
+	JujuAuthenticate = &jujuAuthenticate
+	Sleep            = &sleep
+	WaitReady        = waitReady
 )
