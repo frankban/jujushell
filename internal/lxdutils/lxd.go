@@ -37,9 +37,9 @@ func Connect() (lxdclient.Client, error) {
 }
 
 // Ensure ensures that an LXD is available for the given user, and returns its
-// address. If the container is not available, one is created using the given
-// image, which is assumed to have Juju already installed.
-func Ensure(client lxdclient.Client, image string, profiles []string, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+// name and address. If the container is not available, one is created using
+// the given image, which is assumed to have Juju already installed.
+func Ensure(client lxdclient.Client, image string, profiles []string, info *juju.Info, creds *juju.Credentials) (cname, caddr string, err error) {
 	name := containerName(info.User)
 	defer func() {
 		if err == nil {
@@ -101,15 +101,15 @@ func Ensure(client lxdclient.Client, image string, profiles []string, info *juju
 		return c, nil
 	})
 	if err != nil {
-		return "", errgo.Mask(err)
+		return "", "", errgo.Mask(err)
 	}
 	c := container.(lxdclient.Container)
 
 	// Retrieve the container address.
 	log.Debugw("retreiving container address", "container", name)
-	addr, err = c.Addr()
+	addr, err := c.Addr()
 	if err != nil {
-		return "", errgo.Mask(err)
+		return "", "", errgo.Mask(err)
 	}
 
 	// Prepare the container, including the Juju data directory. This is done
@@ -117,9 +117,9 @@ func Ensure(client lxdclient.Client, image string, profiles []string, info *juju
 	// instance, to update credentials.
 	log.Debugw("preparing container", "container", name, "address", addr)
 	if err = prepare(c, info, creds); err != nil {
-		return "", errgo.Mask(err)
+		return "", "", errgo.Mask(err)
 	}
-	return addr, nil
+	return name, addr, nil
 }
 
 // prepare sets up dynamic container contents, like the Juju data directory

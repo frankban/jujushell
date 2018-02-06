@@ -54,7 +54,7 @@ func TestWaitReady(t *testing.T) {
 		handler: handler(c, mustMarshalJSON(apiparams.Response{
 			Code: apiparams.OK,
 		}), 1000),
-		expectedSleepCalls: 100,
+		expectedSleepCalls: 50,
 		expectedError:      "cannot get .*: EOF",
 	}, {
 		about:         "failure for non JSON response",

@@ -4,7 +4,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -36,6 +35,10 @@ type Config struct {
 	Port int `yaml:"port"`
 	// Profiles holds the LXD profiles to use when launching containers.
 	Profiles []string `yaml:"profiles"`
+	// SessionTimeout holds the number of minutes of inactvity to wait before
+	// expiring a session and stopping the container instance. A zero value
+	// means that the session never expires.
+	SessionTimeout int `yaml:"session-timeout"`
 	// TLSCert and TLSKey optionally hold TLS info for running the server.
 	TLSCert string `yaml:"tls-cert"`
 	TLSKey  string `yaml:"tls-key"`
@@ -79,15 +82,18 @@ func validate(c Config) error {
 		missing = append(missing, "profiles")
 	}
 	if len(missing) != 0 {
-		return fmt.Errorf("missing fields: %s", strings.Join(missing, ", "))
+		return errgo.Newf("missing fields: %s", strings.Join(missing, ", "))
 	}
 	if c.DNSName != "" {
 		if c.TLSCert != "" || c.TLSKey != "" {
-			return fmt.Errorf("cannot specify both DNS name for Let's Encrypt and TLS keys at the same time")
+			return errgo.New("cannot specify both DNS name for Let's Encrypt and TLS keys at the same time")
 		}
 		if c.Port != 443 {
-			return fmt.Errorf("cannot use a port different than 443 with Let's Encrypt")
+			return errgo.New("cannot use a port different than 443 with Let's Encrypt")
 		}
+	}
+	if c.SessionTimeout < 0 {
+		return errgo.New("cannot specify a negative session timeout")
 	}
 	return nil
 }

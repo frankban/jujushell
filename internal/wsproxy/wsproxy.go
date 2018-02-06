@@ -53,3 +53,25 @@ type Conn interface {
 	// Close method flushes the complete message to the network.
 	NextWriter(messageType int) (io.WriteCloser, error)
 }
+
+// NewConnWithHooks creates and returns a new connection that executes the
+// given onInput function every time data is received.
+func NewConnWithHooks(conn Conn, onInput func()) Conn {
+	return &connWithHooks{
+		Conn:    conn,
+		onInput: onInput,
+	}
+}
+
+type connWithHooks struct {
+	Conn
+	onInput func()
+}
+
+// NextReader implements Conn calling the stored function when a message is
+// received.
+func (c *connWithHooks) NextReader() (messageType int, r io.Reader, err error) {
+	messageType, r, err = c.Conn.NextReader()
+	c.onInput()
+	return messageType, r, err
+}

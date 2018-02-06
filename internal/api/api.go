@@ -6,6 +6,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -16,6 +17,7 @@ import (
 	"github.com/juju/jujushell/internal/logging"
 	"github.com/juju/jujushell/internal/lxdutils"
 	"github.com/juju/jujushell/internal/metrics"
+	"github.com/juju/jujushell/internal/registry"
 	"github.com/juju/jujushell/internal/wsproxy"
 	"github.com/juju/jujushell/internal/wstransport"
 )
@@ -23,10 +25,15 @@ import (
 var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
-func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, svc SvcParams) {
-	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd, svc)))
+func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, svc SvcParams) error {
+	reg, err := registry.New(svc.SessionDuration)
+	if err != nil {
+		return errgo.Notef(err, "cannot create container registry")
+	}
+	mux.Handle("/ws/", metrics.InstrumentHandler(serveWebSocket(juju, lxd, svc, reg)))
 	mux.HandleFunc("/status/", statusHandler)
 	mux.Handle("/metrics", promhttp.Handler())
+	return nil
 }
 
 // JujuParams holds parameters for interacting with the Juju controller.
@@ -49,10 +56,12 @@ type LXDParams struct {
 type SvcParams struct {
 	// AllowedUsers holds a list of names of users allowed to use the service.
 	AllowedUsers []string
+	// SessionDuration holds time duration before expiring container sessions.
+	SessionDuration time.Duration
 }
 
 // serveWebSocket handles WebSocket connections.
-func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams) http.Handler {
+func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams, reg *registry.Registry) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Upgrade the HTTP connection.
 		conn, err := wstransport.Upgrade(w, r)
@@ -71,13 +80,13 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams) http.Handler 
 			return
 		}
 		log.Infow("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
-		addr, err := handleStart(conn, lxd, info, creds)
+		name, addr, err := handleStart(conn, lxd, info, creds)
 		if err != nil {
 			log.Infow("cannot start user session", "user", info.User, "err", err)
 			return
 		}
 		log.Infow("session started", "user", info.User, "address", addr)
-		if err = handleSession(conn, addr); err != nil {
+		if err = handleSession(conn, name, addr, reg); err != nil {
 			log.Infow("session closed", "user", info.User, "address", addr, "err", err)
 			return
 		}
@@ -120,36 +129,38 @@ func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, all
 // the provided LXD parameters. Example request/response:
 //     --> {"operation": "start"}
 //     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn wstransport.Conn, lxd LXDParams, info *juju.Info, creds *juju.Credentials) (addr string, err error) {
+func handleStart(conn wstransport.Conn, lxd LXDParams, info *juju.Info, creds *juju.Credentials) (name, addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
-		return "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpStart {
-		return "", conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
+		return "", "", conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
 	log.Debugw("connecting to the LXD server")
 	lxdclient, err := lxdutils.Connect()
 	if err != nil {
-		return "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(errgo.Mask(err))
 	}
 	lxdclient = metrics.InstrumentLXDClient(lxdclient)
 	log.Debugw("setting up the LXD instance", "image", lxd.ImageName, "profiles", lxd.Profiles)
-	addr, err = lxdutils.Ensure(lxdclient, lxd.ImageName, lxd.Profiles, info, creds)
+	name, addr, err = lxdutils.Ensure(lxdclient, lxd.ImageName, lxd.Profiles, info, creds)
 	if err != nil {
-		return "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(errgo.Mask(err))
 	}
 	url := fmt.Sprintf("http://%s:%d/status", addr, termserverPort)
 	log.Debugw("waiting for the internal shell service to be ready", "url", url)
 	if err = waitReady(url); err != nil {
-		return "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(errgo.Mask(err))
 	}
-	return addr, conn.OK("session is ready")
+	return name, addr, conn.OK("session is ready")
 }
 
-// handleSession proxies traffic from the client to the LXD instance at the
-// given address.
-func handleSession(conn wstransport.Conn, addr string) error {
+// handleSession proxies traffic from the client to the LXD instance with the
+// given name and address.
+func handleSession(conn wstransport.Conn, name, addr string, reg *registry.Registry) error {
+	ac := reg.Get(name)
+	ac.SetActive()
 	// The path must reflect what used by the Terminado service which is
 	// running in the LXD container.
 	url := fmt.Sprintf("ws://%s:%d/websocket", addr, termserverPort)
@@ -158,8 +169,13 @@ func handleSession(conn wstransport.Conn, addr string) error {
 	if err != nil {
 		return errgo.Notef(err, "cannot dial %s", url)
 	}
+	defer lxcconn.Close()
+
 	log.Debugw("starting the proxy")
-	return errgo.Mask(wsproxy.Copy(conn, lxcconn))
+	if err = wsproxy.Copy(wsproxy.NewConnWithHooks(conn, ac.SetActive), lxcconn); err != nil {
+		return errgo.Mask(err)
+	}
+	return nil
 }
 
 // termserverPort holds the port on which the term server is listening.

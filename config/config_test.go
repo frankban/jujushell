@@ -23,22 +23,38 @@ var readTests = []struct {
 }{{
 	about: "valid config",
 	content: mustMarshalYAML(map[string]interface{}{
-		"allowed-users": []string{"who", "dalek"},
-		"image-name":    "myimage",
-		"juju-addrs":    []string{"1.2.3.4", "4.3.2.1"},
-		"juju-cert":     "my Juju cert",
-		"log-level":     "debug",
-		"port":          8047,
-		"profiles":      []string{"default", "termserver"},
+		"allowed-users":   []string{"who", "dalek"},
+		"image-name":      "myimage",
+		"juju-addrs":      []string{"1.2.3.4", "4.3.2.1"},
+		"juju-cert":       "my Juju cert",
+		"log-level":       "debug",
+		"port":            8047,
+		"profiles":        []string{"default", "termserver"},
+		"session-timeout": 42,
 	}),
 	expectedConfig: &config.Config{
-		AllowedUsers: []string{"who", "dalek"},
-		ImageName:    "myimage",
-		JujuAddrs:    []string{"1.2.3.4", "4.3.2.1"},
-		JujuCert:     "my Juju cert",
-		LogLevel:     zapcore.DebugLevel,
-		Port:         8047,
-		Profiles:     []string{"default", "termserver"},
+		AllowedUsers:   []string{"who", "dalek"},
+		ImageName:      "myimage",
+		JujuAddrs:      []string{"1.2.3.4", "4.3.2.1"},
+		JujuCert:       "my Juju cert",
+		LogLevel:       zapcore.DebugLevel,
+		Port:           8047,
+		Profiles:       []string{"default", "termserver"},
+		SessionTimeout: 42,
+	},
+}, {
+	about: "valid minimum config",
+	content: mustMarshalYAML(map[string]interface{}{
+		"image-name": "myimage",
+		"juju-addrs": []string{"1.2.3.4", "4.3.2.1"},
+		"port":       8047,
+		"profiles":   []string{"default", "termserver"},
+	}),
+	expectedConfig: &config.Config{
+		ImageName: "myimage",
+		JujuAddrs: []string{"1.2.3.4", "4.3.2.1"},
+		Port:      8047,
+		Profiles:  []string{"default", "termserver"},
 	},
 }, {
 	about: "valid jaas config",
@@ -79,8 +95,18 @@ var readTests = []struct {
 	content:       []byte("not a yaml"),
 	expectedError: `cannot parse ".*": yaml: unmarshal errors:\n.*`,
 }, {
-	about:         "invalid config",
+	about:         "invalid config: missing fields",
 	expectedError: `invalid configuration at ".*": missing fields: image-name, juju-addrs, port, profiles`,
+}, {
+	about: "invalid config: bad session timeout",
+	content: mustMarshalYAML(map[string]interface{}{
+		"image-name":      "myimage",
+		"juju-addrs":      []string{"1.2.3.4", "4.3.2.1"},
+		"port":            8047,
+		"profiles":        []string{"default", "termserver"},
+		"session-timeout": -1,
+	}),
+	expectedError: `invalid configuration at ".*": cannot specify a negative session timeout`,
 }, {
 	about: "invalid config for let's encrypt: keys specified",
 	content: mustMarshalYAML(map[string]interface{}{

@@ -13,7 +13,7 @@ import (
 	"github.com/juju/jujushell/apiparams"
 )
 
-const retries = 100
+const retries = 50
 
 func waitReady(url string) error {
 	var err error

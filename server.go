@@ -5,6 +5,9 @@ package jujushell
 
 import (
 	"net/http"
+	"time"
+
+	"gopkg.in/errgo.v1"
 
 	"github.com/juju/jujushell/internal/api"
 )
@@ -12,15 +15,19 @@ import (
 // NewServer returns a new handler that handles juju shell requests.
 func NewServer(p Params) (http.Handler, error) {
 	mux := http.NewServeMux()
-	api.Register(mux, api.JujuParams{
+	err := api.Register(mux, api.JujuParams{
 		Addrs: p.JujuAddrs,
 		Cert:  p.JujuCert,
 	}, api.LXDParams{
 		ImageName: p.ImageName,
 		Profiles:  p.Profiles,
 	}, api.SvcParams{
-		AllowedUsers: p.AllowedUsers,
+		AllowedUsers:    p.AllowedUsers,
+		SessionDuration: p.SessionDuration,
 	})
+	if err != nil {
+		return nil, errgo.Mask(err)
+	}
 	return mux, nil
 }
 
@@ -36,4 +43,6 @@ type Params struct {
 	JujuCert string
 	// Profiles holds the LXD profiles to use when launching containers.
 	Profiles []string
+	// SessionDuration holds time duration before expiring container sessions.
+	SessionDuration time.Duration
 }
