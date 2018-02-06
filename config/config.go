@@ -35,7 +35,7 @@ type Config struct {
 	Port int `yaml:"port"`
 	// Profiles holds the LXD profiles to use when launching containers.
 	Profiles []string `yaml:"profiles"`
-	// SessionTimeout holds the number of minutes of inactvity to wait before
+	// SessionTimeout holds the number of minutes of inactivity to wait before
 	// expiring a session and stopping the container instance. A zero value
 	// means that the session never expires.
 	SessionTimeout int `yaml:"session-timeout"`
