@@ -26,7 +26,7 @@ var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
 func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, svc SvcParams) error {
-	reg, err := registry.New(svc.SessionDuration)
+	reg, err := registryNew(svc.SessionDuration)
 	if err != nil {
 		return errgo.Notef(err, "cannot create container registry")
 	}
@@ -198,4 +198,9 @@ func isUserAllowed(user string, allowed []string) bool {
 // jujuAuthenticate is defined as a variable for testing.
 var jujuAuthenticate = func(addrs []string, creds *juju.Credentials, cert string) (*juju.Info, error) {
 	return juju.Authenticate(addrs, creds, cert)
+}
+
+// registryNew is defined as a variable for testing.
+var registryNew = func(d time.Duration) (*registry.Registry, error) {
+	return registry.New(d)
 }

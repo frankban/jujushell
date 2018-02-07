@@ -5,6 +5,7 @@ package api
 
 var (
 	JujuAuthenticate = &jujuAuthenticate
+	RegistryNew      = &registryNew
 	Sleep            = &sleep
 	WaitReady        = waitReady
 )

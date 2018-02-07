@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	qt "github.com/frankban/quicktest"
 	"github.com/gorilla/websocket"
@@ -18,6 +19,7 @@ import (
 	"github.com/juju/jujushell/internal/api"
 	"github.com/juju/jujushell/internal/juju"
 	"github.com/juju/jujushell/internal/logging"
+	"github.com/juju/jujushell/internal/registry"
 )
 
 var serveWebSocketTests = []struct {
@@ -105,6 +107,9 @@ func TestServeWebSocket(t *testing.T) {
 // setupMux creates and returns a mux with the API registered.
 func setupMux(c *qt.C, addrs, allowedUsers []string) *http.ServeMux {
 	mux := http.NewServeMux()
+	c.Patch(api.RegistryNew, func(d time.Duration) (*registry.Registry, error) {
+		return &registry.Registry{}, nil
+	})
 	err := api.Register(mux, api.JujuParams{
 		Addrs: addrs,
 		Cert:  "cert",
