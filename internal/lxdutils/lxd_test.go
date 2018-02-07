@@ -22,6 +22,7 @@ var ensureTests = []struct {
 	info   *juju.Info
 	creds  *juju.Credentials
 
+	expectedName  string
 	expectedAddr  string
 	expectedError string
 
@@ -283,6 +284,7 @@ var ensureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
+	expectedName: "ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose",
 	expectedAddr: "1.2.3.6",
 	expectedCalls: [][]string{
 		call("All"),
@@ -311,6 +313,7 @@ var ensureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
+	expectedName: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
 	expectedAddr: "1.2.3.7",
 	expectedCalls: [][]string{
 		call("All"),
@@ -340,6 +343,7 @@ var ensureTests = []struct {
 			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
 		},
 	},
+	expectedName: "ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k",
 	expectedAddr: "1.2.3.4",
 	expectedCalls: [][]string{
 		call("All"),
@@ -358,9 +362,9 @@ var ensureTests = []struct {
 }}
 
 func TestEnsure(t *testing.T) {
+	c := qt.New(t)
 	for _, test := range ensureTests {
-		t.Run(test.about, func(t *testing.T) {
-			c := qt.New(t)
+		c.Run(test.about, func(c *qt.C) {
 			if test.info == nil {
 				test.info = &juju.Info{
 					User: "who",
@@ -378,12 +382,14 @@ func TestEnsure(t *testing.T) {
 				name: "ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa",
 				addr: "1.2.3.7",
 			}}
-			addr, err := lxdutils.Ensure(test.client, "termserver", []string{"default", "termserver"}, test.info, test.creds)
+			name, addr, err := lxdutils.Ensure(test.client, "termserver", []string{"default", "termserver"}, test.info, test.creds)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
+				c.Assert(name, qt.Equals, "")
 				c.Assert(addr, qt.Equals, "")
 			} else {
 				c.Assert(err, qt.Equals, nil)
+				c.Assert(name, qt.Equals, test.expectedName)
 				c.Assert(addr, qt.Equals, test.expectedAddr)
 			}
 			c.Assert(test.client.calls, qt.DeepEquals, test.expectedCalls)

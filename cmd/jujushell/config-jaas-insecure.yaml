@@ -3,3 +3,4 @@ juju-addrs: ["jimm.jujucharms.com:443"]
 log-level: debug
 image-name: "termserver"
 profiles: ["default"]
+session-timeout: 2

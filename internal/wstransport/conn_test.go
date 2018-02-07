@@ -19,6 +19,7 @@ import (
 
 func TestConnError(t *testing.T) {
 	c := qt.New(t)
+
 	// Set up a WebSocket server that writes a JSON error response.
 	srv := httptest.NewServer(wsHandler(func(conn wstransport.Conn) {
 		badWolf := errors.New("bad wolf")
@@ -43,6 +44,7 @@ func TestConnError(t *testing.T) {
 
 func TestConnOK(t *testing.T) {
 	c := qt.New(t)
+
 	// Set up a WebSocket server that writes a JSON successful response.
 	srv := httptest.NewServer(wsHandler(func(conn wstransport.Conn) {
 		err := conn.OK("these %s the voyages", "are")

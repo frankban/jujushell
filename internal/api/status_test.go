@@ -16,8 +16,9 @@ import (
 
 func TestStatusHandler(t *testing.T) {
 	c := qt.New(t)
+	defer c.Cleanup()
 	// Set up the WebSocket server.
-	server := httptest.NewServer(setupMux([]string{"1.2.3.4"}, nil))
+	server := httptest.NewServer(setupMux(c, []string{"1.2.3.4"}, nil))
 	defer server.Close()
 
 	// Exercise the status handler.

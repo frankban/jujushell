@@ -3,6 +3,7 @@ juju-addrs: ["jimm.jujucharms.com:443"]
 log-level: debug
 image-name: "termserver"
 profiles: ["default"]
+session-timeout: 20
 tls-cert: |
   -----BEGIN CERTIFICATE-----
   MIIFezCCA2OgAwIBAgIJAKHprWndysgcMA0GCSqGSIb3DQEBCwUAMFQxCzAJBgNV

@@ -12,6 +12,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"golang.org/x/crypto/acme/autocert"
 	"gopkg.in/errgo.v1"
@@ -49,11 +50,12 @@ func serve(configPath string) error {
 	defer log.Sync()
 	log.Infow("starting the server", "log level", conf.LogLevel, "port", conf.Port)
 	handler, err := jujushell.NewServer(jujushell.Params{
-		AllowedUsers: conf.AllowedUsers,
-		ImageName:    conf.ImageName,
-		JujuAddrs:    conf.JujuAddrs,
-		JujuCert:     conf.JujuCert,
-		Profiles:     conf.Profiles,
+		AllowedUsers:    conf.AllowedUsers,
+		ImageName:       conf.ImageName,
+		JujuAddrs:       conf.JujuAddrs,
+		JujuCert:        conf.JujuCert,
+		Profiles:        conf.Profiles,
+		SessionDuration: time.Duration(conf.SessionTimeout) * time.Minute,
 	})
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")
