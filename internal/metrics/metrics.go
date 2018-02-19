@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/juju/jujushell/apiparams"
 	"github.com/juju/jujushell/internal/lxdclient"
 	"github.com/juju/jujushell/internal/wstransport"
 )
@@ -70,8 +71,8 @@ type connection struct {
 }
 
 // Error implements wstransport.Conn.Error.
-func (conn *connection) Error(err error) error {
-	err = conn.Conn.Error(err)
+func (conn *connection) Error(op apiparams.Operation, err error) error {
+	err = conn.Conn.Error(op, err)
 	conn.errorsCount.WithLabelValues(err.Error()).Inc()
 	return err
 }

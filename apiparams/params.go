@@ -26,6 +26,8 @@ type Start struct {
 
 // Response holds a server response.
 type Response struct {
+	// Operation holds the originally requested operation.
+	Operation Operation `json:"operation"`
 	// Code is the response code.
 	Code ResponseCode `json:"code"`
 	// Message holds an optional response message.
@@ -35,14 +37,17 @@ type Response struct {
 // Operation is a server operation.
 type Operation string
 
+// OpLogin, OpStart and OpStatus hold API request operations.
 const (
-	OpLogin Operation = "login"
-	OpStart Operation = "start"
+	OpLogin  Operation = "login"
+	OpStart  Operation = "start"
+	OpStatus Operation = "status"
 )
 
 // ResponseCode is a server response code.
 type ResponseCode string
 
+// OK and Error hold the two possible response codes.
 const (
 	OK    ResponseCode = "ok"
 	Error ResponseCode = "error"

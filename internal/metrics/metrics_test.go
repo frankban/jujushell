@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/juju/jujushell/apiparams"
 	"github.com/juju/jujushell/internal/lxdclient"
 	"github.com/juju/jujushell/internal/metrics"
 	"github.com/juju/jujushell/internal/wstransport"
@@ -73,7 +74,7 @@ func TestInstrumentWSConnection(t *testing.T) {
 		conn = metrics.InstrumentWSConnection(conn)
 		msg := errs[0]
 		errs = errs[1:]
-		conn.Error(errors.New(msg))
+		conn.Error(apiparams.OpStart, errors.New(msg))
 	}))
 	defer wsSrv.Close()
 
