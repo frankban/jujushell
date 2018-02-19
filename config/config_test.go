@@ -31,6 +31,7 @@ var readTests = []struct {
 		"port":            8047,
 		"profiles":        []string{"default", "termserver"},
 		"session-timeout": 42,
+		"welcome-message": "exterminate!",
 	}),
 	expectedConfig: &config.Config{
 		AllowedUsers:   []string{"who", "dalek"},
@@ -41,6 +42,7 @@ var readTests = []struct {
 		Port:           8047,
 		Profiles:       []string{"default", "termserver"},
 		SessionTimeout: 42,
+		WelcomeMessage: "exterminate!",
 	},
 }, {
 	about: "valid minimum config",
