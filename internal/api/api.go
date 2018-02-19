@@ -58,6 +58,8 @@ type SvcParams struct {
 	AllowedUsers []string
 	// SessionDuration holds time duration before expiring container sessions.
 	SessionDuration time.Duration
+	// WelcomeMessage optionally holds an initial welcome message for users.
+	WelcomeMessage string
 }
 
 // serveWebSocket handles WebSocket connections.

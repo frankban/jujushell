@@ -90,3 +90,4 @@ tls-key: |
   4sPdiZvu3TpcySGMiWBIBFwg1oKgif1oxONwKKqGsS1h+lJ2ejPQ2qQkdLTeKTnz
   43CbdD4VeC4VsMubOCjbT24bBdcU0CbjeA==
   -----END PRIVATE KEY-----
+welcome-message: Welcome to JAAS jujushell!
