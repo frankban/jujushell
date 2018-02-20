@@ -15,7 +15,8 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	// Ignore errors here.
 	enc.Encode(apiparams.Response{
-		Code:    apiparams.OK,
-		Message: "server is ready",
+		Operation: apiparams.OpStatus,
+		Code:      apiparams.OK,
+		Message:   "server is ready",
 	})
 }

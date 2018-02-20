@@ -23,7 +23,7 @@ func TestConnError(t *testing.T) {
 	// Set up a WebSocket server that writes a JSON error response.
 	srv := httptest.NewServer(wsHandler(func(conn wstransport.Conn) {
 		badWolf := errors.New("bad wolf")
-		err := conn.Error(badWolf)
+		err := conn.Error(apiparams.OpLogin, badWolf)
 		c.Assert(err, qt.Equals, badWolf)
 	}))
 	defer srv.Close()
@@ -37,8 +37,9 @@ func TestConnError(t *testing.T) {
 	err := conn.ReadJSON(&resp)
 	c.Assert(err, qt.Equals, nil)
 	c.Assert(resp, qt.DeepEquals, apiparams.Response{
-		Code:    apiparams.Error,
-		Message: "bad wolf",
+		Operation: apiparams.OpLogin,
+		Code:      apiparams.Error,
+		Message:   "bad wolf",
 	})
 }
 
@@ -47,7 +48,7 @@ func TestConnOK(t *testing.T) {
 
 	// Set up a WebSocket server that writes a JSON successful response.
 	srv := httptest.NewServer(wsHandler(func(conn wstransport.Conn) {
-		err := conn.OK("these %s the voyages", "are")
+		err := conn.OK(apiparams.OpStart, "these %s the voyages", "are")
 		c.Assert(err, qt.Equals, nil)
 	}))
 	defer srv.Close()
@@ -61,8 +62,9 @@ func TestConnOK(t *testing.T) {
 	err := conn.ReadJSON(&resp)
 	c.Assert(err, qt.Equals, nil)
 	c.Assert(resp, qt.DeepEquals, apiparams.Response{
-		Code:    apiparams.OK,
-		Message: "these are the voyages",
+		Operation: apiparams.OpStart,
+		Code:      apiparams.OK,
+		Message:   "these are the voyages",
 	})
 }
 

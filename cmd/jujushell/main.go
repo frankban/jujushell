@@ -56,6 +56,7 @@ func serve(configPath string) error {
 		JujuCert:        conf.JujuCert,
 		Profiles:        conf.Profiles,
 		SessionDuration: time.Duration(conf.SessionTimeout) * time.Minute,
+		WelcomeMessage:  conf.WelcomeMessage,
 	})
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")

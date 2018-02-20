@@ -4,3 +4,6 @@ log-level: debug
 image-name: "termserver"
 profiles: ["default"]
 session-timeout: 2
+welcome-message: |
+  Welcome to JAAS insecure jujushell!
+  This is an example welcome message.

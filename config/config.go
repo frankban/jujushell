@@ -42,6 +42,9 @@ type Config struct {
 	// TLSCert and TLSKey optionally hold TLS info for running the server.
 	TLSCert string `yaml:"tls-cert"`
 	TLSKey  string `yaml:"tls-key"`
+	// WelcomeMessage optionally holds a message to be displayed when users
+	// start the shell session.
+	WelcomeMessage string `yaml:"welcome-message"`
 }
 
 // Read reads the configuration options from a file at the given path.

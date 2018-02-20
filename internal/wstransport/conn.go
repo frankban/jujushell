@@ -30,11 +30,12 @@ type Conn interface {
 	// NextWriter returns a writer for the next message to send. The writer's
 	// Close method flushes the complete message to the network.
 	NextWriter(messageType int) (io.WriteCloser, error)
-	// Error writes an error response including the given error as a message.
-	// The error is also returned.
-	Error(err error) error
-	// OK writes a success response with the given formatted text as a message.
-	OK(format string, a ...interface{}) error
+	// Error writes an error response including the given operation and error
+	// message. The error is also returned.
+	Error(op apiparams.Operation, err error) error
+	// OK writes a success response with the given operation and formatted text
+	// as a message.
+	OK(op apiparams.Operation, format string, a ...interface{}) error
 	// Close closes the WebSocket connection.
 	Close() error
 }
@@ -56,28 +57,30 @@ type connection struct {
 	*websocket.Conn
 }
 
-// Error implements conn.Error by sending a JSON message with the given error.
-func (conn *connection) Error(err error) error {
-	if werr := writeResponse(conn, apiparams.Error, err.Error()); werr != nil {
+// Error implements conn.Error by sending a JSON message with the given
+// operation and error.
+func (conn *connection) Error(op apiparams.Operation, err error) error {
+	if werr := writeResponse(conn, op, apiparams.Error, err.Error()); werr != nil {
 		return errgo.Notef(werr, "original error: %v", err)
 	}
 	return err
 }
 
-// OK implements Conn.OK by sending a successful JSON message inclding the
-// given formatted text.
-func (conn *connection) OK(format string, a ...interface{}) error {
+// OK implements Conn.OK by sending a successful JSON message including the
+// given operation and formatted text.
+func (conn *connection) OK(op apiparams.Operation, format string, a ...interface{}) error {
 	msg := fmt.Sprintf(format, a...)
-	if err := writeResponse(conn, apiparams.OK, msg); err != nil {
+	if err := writeResponse(conn, op, apiparams.OK, msg); err != nil {
 		return errgo.Notef(err, "original message: %s", msg)
 	}
 	return nil
 }
 
-func writeResponse(conn Conn, code apiparams.ResponseCode, message string) error {
+func writeResponse(conn Conn, op apiparams.Operation, code apiparams.ResponseCode, message string) error {
 	resp := apiparams.Response{
-		Code:    code,
-		Message: message,
+		Operation: op,
+		Code:      code,
+		Message:   message,
 	}
 	log.Debugw("sending response", "code", code, "message", message)
 	if err := conn.WriteJSON(resp); err != nil {

@@ -24,6 +24,7 @@ func NewServer(p Params) (http.Handler, error) {
 	}, api.SvcParams{
 		AllowedUsers:    p.AllowedUsers,
 		SessionDuration: p.SessionDuration,
+		WelcomeMessage:  p.WelcomeMessage,
 	})
 	if err != nil {
 		return nil, errgo.Mask(err)
@@ -45,4 +46,6 @@ type Params struct {
 	Profiles []string
 	// SessionDuration holds time duration before expiring container sessions.
 	SessionDuration time.Duration
+	// WelcomeMessage optionally holds an initial welcome message for users.
+	WelcomeMessage string
 }

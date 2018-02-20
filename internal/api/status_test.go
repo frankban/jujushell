@@ -31,6 +31,7 @@ func TestStatusHandler(t *testing.T) {
 	var r apiparams.Response
 	err = dec.Decode(&r)
 	c.Assert(err, qt.Equals, nil)
+	c.Assert(r.Operation, qt.Equals, apiparams.OpStatus)
 	c.Assert(r.Code, qt.Equals, apiparams.OK)
 	c.Assert(r.Message, qt.Equals, "server is ready")
 }

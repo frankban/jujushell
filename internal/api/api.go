@@ -58,6 +58,8 @@ type SvcParams struct {
 	AllowedUsers []string
 	// SessionDuration holds time duration before expiring container sessions.
 	SessionDuration time.Duration
+	// WelcomeMessage optionally holds an initial welcome message for users.
+	WelcomeMessage string
 }
 
 // serveWebSocket handles WebSocket connections.
@@ -80,7 +82,7 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams, reg *registry
 			return
 		}
 		log.Infow("user authenticated", "user", info.User, "uuid", info.ControllerUUID, "endpoints", info.Endpoints)
-		name, addr, err := handleStart(conn, lxd, info, creds)
+		name, addr, err := handleStart(conn, lxd, svc, info, creds)
 		if err != nil {
 			log.Infow("cannot start user session", "user", info.User, "err", err)
 			return
@@ -99,14 +101,14 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams, reg *registry
 // users is not empty, this function also checks that the user is allowed.
 // Example request/response:
 //     --> {"operation": "login", "username": "admin", "password": "secret"}
-//     <-- {"code": "ok", "message": "logged in as \"admin\""}
+//     <-- {"operation": "login", "code": "ok", "message": "logged in as \"admin\""}
 func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, allowedUsers []string) (info *juju.Info, creds *juju.Credentials, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
-		return nil, nil, conn.Error(errgo.Mask(err))
+		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpLogin {
-		return nil, nil, conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
+		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
 	}
 	creds = &juju.Credentials{
 		Username:  req.Username,
@@ -116,44 +118,44 @@ func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, all
 	log.Debugw("authenticating to the controller", "addresses", jujuAddrs)
 	info, err = jujuAuthenticate(jujuAddrs, creds, jujuCert)
 	if err != nil {
-		return nil, nil, conn.Error(errgo.Notef(err, "cannot log into juju"))
+		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Notef(err, "cannot log into juju"))
 	}
 	if !isUserAllowed(info.User, allowedUsers) {
-		return nil, nil, conn.Error(errgo.Newf("user %q is not allowed to access the service", info.User))
+		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Newf("user %q is not allowed to access the service", info.User))
 	}
-	return info, creds, conn.OK("logged in as %q", info.User)
+	return info, creds, conn.OK(apiparams.OpLogin, "logged in as %q", info.User)
 }
 
 // handleStart ensures an LXD is available for the given username, by checking
 // whether one container is already started or, if not, creating one based on
 // the provided LXD parameters. Example request/response:
 //     --> {"operation": "start"}
-//     <-- {"code": "ok", "message": "session is ready"}
-func handleStart(conn wstransport.Conn, lxd LXDParams, info *juju.Info, creds *juju.Credentials) (name, addr string, err error) {
+//     <-- {"operation": "start", "code": "ok", "message": "session is ready"}
+func handleStart(conn wstransport.Conn, lxd LXDParams, svc SvcParams, info *juju.Info, creds *juju.Credentials) (name, addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
-		return "", "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
 	}
 	if req.Operation != apiparams.OpStart {
-		return "", "", conn.Error(errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
 	log.Debugw("connecting to the LXD server")
 	lxdclient, err := lxdutils.Connect()
 	if err != nil {
-		return "", "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
 	}
 	lxdclient = metrics.InstrumentLXDClient(lxdclient)
 	log.Debugw("setting up the LXD instance", "image", lxd.ImageName, "profiles", lxd.Profiles)
 	name, addr, err = lxdutils.Ensure(lxdclient, lxd.ImageName, lxd.Profiles, info, creds)
 	if err != nil {
-		return "", "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
 	}
 	url := fmt.Sprintf("http://%s:%d/status", addr, termserverPort)
 	log.Debugw("waiting for the internal shell service to be ready", "url", url)
 	if err = waitReady(url); err != nil {
-		return "", "", conn.Error(errgo.Mask(err))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
 	}
-	return name, addr, conn.OK("session is ready")
+	return name, addr, conn.OK(apiparams.OpStart, svc.WelcomeMessage)
 }
 
 // handleSession proxies traffic from the client to the LXD instance with the
