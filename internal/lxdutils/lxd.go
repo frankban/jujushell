@@ -203,7 +203,8 @@ func containerName(username string) string {
 	if len(name) > 60 {
 		name = name[:60]
 	}
-	return name
+	// Container names must end with letters or digits.
+	return strings.TrimRight(name, "-")
 }
 
 // group holds the namespace used for executing tasks suppressing duplicates.
