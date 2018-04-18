@@ -359,6 +359,37 @@ var ensureTests = []struct {
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Exec", "su", "-", "ubuntu", "-c", "juju login -c ctrl"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
 	},
+}, {
+	about:  "success without machine and user ending with hyphens",
+	client: &client{},
+	info: &juju.Info{
+		User:           "rose--!",
+		ControllerName: "ctrl",
+		ControllerUUID: "ctrl-uuid",
+		CACert:         "certificate",
+		Endpoints:      []string{"1.2.3.7"},
+	},
+	creds: &juju.Credentials{
+		Macaroons: map[string]macaroon.Slice{
+			"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
+		},
+	},
+	expectedName: "ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose",
+	expectedAddr: "1.2.3.4",
+	expectedCalls: [][]string{
+		call("All"),
+		call("Create", "termserver", "ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose", "default", "termserver"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Started"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Start"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Addr"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call(
+			"(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).WriteFile",
+			"/home/ubuntu/.local/share/juju/controllers.yaml",
+			"controllers:\n  ctrl:\n    uuid: ctrl-uuid\n    api-endpoints: [1.2.3.7]\n    ca-cert: certificate\n    cloud: \"\"\n    controller-machine-count: 0\n    active-controller-machine-count: 0\ncurrent-controller: ctrl\n"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Exec", "su", "-", "ubuntu", "-c", "juju login -c ctrl"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Exec", "su", "-", "ubuntu", "-c", "~/.session setup >> .session.log 2>&1"),
+	},
 }}
 
 func TestEnsure(t *testing.T) {

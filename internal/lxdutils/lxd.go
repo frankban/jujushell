@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	cookiejar "github.com/juju/persistent-cookiejar"
 	"golang.org/x/sync/singleflight"
@@ -203,7 +204,10 @@ func containerName(username string) string {
 	if len(name) > 60 {
 		name = name[:60]
 	}
-	return name
+	// Container names must end with letters or digits.
+	return strings.TrimRightFunc(name, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	})
 }
 
 // group holds the namespace used for executing tasks suppressing duplicates.
