@@ -323,9 +323,10 @@ func (readWriteNopCloser) Close() error {
 }
 
 // retcode returns the exit code from the command executed with the given op.
-func retcode(op *lxd.Operation) (int, error) {
+func retcode(op lxd.Operation) (int, error) {
 	// See <https://github.com/lxc/lxd/blob/master/doc/rest-api.md#10containersnameexec>.
-	switch v := op.Metadata["return"].(type) {
+	meta := op.Get().Metadata
+	switch v := meta["return"].(type) {
 	// The concrete type for the retcode is float64, but it should really be an
 	// int, so we are being defensive here.
 	case int:
@@ -333,7 +334,7 @@ func retcode(op *lxd.Operation) (int, error) {
 	case float64:
 		return int(v), nil
 	}
-	return 0, errgo.Newf("cannot retrieve retcode from exec operation metadata %v", op.Metadata)
+	return 0, errgo.Newf("cannot retrieve retcode from exec operation metadata %v", meta)
 }
 
 // group holds the namespace used for executing tasks suppressing duplicates.

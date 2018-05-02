@@ -583,20 +583,24 @@ func (s *srv) GetContainer(name string) (container *lxdapi.Container, ETag strin
 	return nil, "", errors.New("not found")
 }
 
-func (s *srv) CreateContainer(req lxdapi.ContainersPost) (*lxd.Operation, error) {
+func (s *srv) CreateContainer(req lxdapi.ContainersPost) (lxd.Operation, error) {
 	s.createContainerProvidedReq = req
 	if s.createContainerError != nil {
 		return nil, s.createContainerError
 	}
-	return newOp(s.createContainerOpError, nil), nil
+	return &operation{
+		err: s.createContainerOpError,
+	}, nil
 }
 
-func (s *srv) DeleteContainer(name string) (*lxd.Operation, error) {
+func (s *srv) DeleteContainer(name string) (lxd.Operation, error) {
 	s.deleteContainerProvidedName = name
 	if s.deleteContainerError != nil {
 		return nil, s.deleteContainerError
 	}
-	return newOp(s.deleteContainerOpError, nil), nil
+	return &operation{
+		err: s.deleteContainerOpError,
+	}, nil
 }
 
 func (s *srv) GetContainerState(name string) (*lxdapi.ContainerState, string, error) {
@@ -613,13 +617,15 @@ func (s *srv) GetContainerState(name string) (*lxdapi.ContainerState, string, er
 	}, "", nil
 }
 
-func (s *srv) UpdateContainerState(name string, req lxdapi.ContainerStatePut, ETag string) (*lxd.Operation, error) {
+func (s *srv) UpdateContainerState(name string, req lxdapi.ContainerStatePut, ETag string) (lxd.Operation, error) {
 	s.updateContainerStateProvidedName = name
 	s.updateContainerStateProvidedReq = req
 	if s.updateContainerStateError != nil {
 		return nil, s.updateContainerStateError
 	}
-	return newOp(s.updateContainerStateOpError, nil), nil
+	return &operation{
+		err: s.updateContainerStateOpError,
+	}, nil
 }
 
 func (s *srv) GetContainerFile(name, path string) (io.ReadCloser, *lxd.ContainerFileResponse, error) {
@@ -655,7 +661,7 @@ func (s *srv) CreateContainerFile(name, path string, args lxd.ContainerFileArgs)
 	return err
 }
 
-func (s *srv) ExecContainer(name string, req lxdapi.ContainerExecPost, args *lxd.ContainerExecArgs) (*lxd.Operation, error) {
+func (s *srv) ExecContainer(name string, req lxdapi.ContainerExecPost, args *lxd.ContainerExecArgs) (lxd.Operation, error) {
 	s.execContainerProvidedName = name
 	s.execContainerProvidedReq = req
 	args.Stdout.Write([]byte("test output"))
@@ -668,23 +674,31 @@ func (s *srv) ExecContainer(name string, req lxdapi.ContainerExecPost, args *lxd
 			"return": float64(0),
 		}
 	}
-	return newOp(s.execContainerOpError, s.execContainerMetadata), nil
+	return &operation{
+		metadata: s.execContainerMetadata,
+		err:      s.execContainerOpError,
+	}, nil
 }
 
-// newOp creates and return a new LXD operation whose Wait method returns the
-// provided error and metadata.
-func newOp(err error, metadata map[string]interface{}) *lxd.Operation {
-	op := lxd.Operation{
-		Operation: lxdapi.Operation{
-			Metadata:   metadata,
-			StatusCode: lxdapi.Success,
-		},
+// operation implements lxd.Operation for testing.
+type operation struct {
+	lxd.Operation
+
+	metadata map[string]interface{}
+	err      error
+}
+
+// Get implements lxd.Operation by returning a concrete API operation holding
+// the stored metadata.
+func (op *operation) Get() lxdapi.Operation {
+	return lxdapi.Operation{
+		Metadata: op.metadata,
 	}
-	if err != nil {
-		op.StatusCode = lxdapi.Failure
-		op.Err = err.Error()
-	}
-	return &op
+}
+
+// Wait implements lxd.Operation by returning the stored error.
+func (op *operation) Wait() error {
+	return op.err
 }
 
 // fileResponse is used to build responses to
