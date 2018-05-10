@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	qt "github.com/frankban/quicktest"
-	macaroon "gopkg.in/macaroon.v1"
+	macaroon "gopkg.in/macaroon.v2"
 
 	"github.com/juju/jujushell/internal/juju"
 	"github.com/juju/jujushell/internal/lxdclient"

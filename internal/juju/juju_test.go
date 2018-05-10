@@ -15,8 +15,8 @@ import (
 	"github.com/juju/juju/jujuclient"
 	"github.com/juju/juju/network"
 	"gopkg.in/juju/names.v2"
-	"gopkg.in/macaroon-bakery.v1/httpbakery"
-	macaroon "gopkg.in/macaroon.v1"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	macaroon "gopkg.in/macaroon.v2"
 	"gopkg.in/yaml.v2"
 
 	"github.com/juju/jujushell/internal/juju"

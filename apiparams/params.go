@@ -3,7 +3,7 @@
 
 package apiparams
 
-import macaroon "gopkg.in/macaroon.v1"
+import macaroon "gopkg.in/macaroon.v2"
 
 // Login holds parameters for making a login request.
 type Login struct {
