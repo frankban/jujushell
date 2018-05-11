@@ -4,8 +4,9 @@
 package juju_test
 
 import (
+	"encoding/json"
 	"errors"
-	"net/http/cookiejar"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -57,7 +58,7 @@ var authenticateTests = []struct {
 }, {
 	about: "macaroon authentication",
 	macaroons: map[string]macaroon.Slice{
-		"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1")},
+		"https://1.2.3.4/identity": macaroon.Slice{mustNewMacaroon("m1", macaroon.V2)},
 	},
 	apiOpenUsername:       "rose",
 	apiOpenControllerUUID: "c2-uuid",
@@ -76,7 +77,7 @@ var authenticateTests = []struct {
 }, {
 	about: "bad macaroons",
 	macaroons: map[string]macaroon.Slice{
-		":::": macaroon.Slice{mustNewMacaroon("m1")},
+		":::": macaroon.Slice{mustNewMacaroon("m1", macaroon.V2)},
 	},
 	expectedError: "cannot store macaroons for logging into controller: cannot parse macaroon URL .*",
 }, {
@@ -133,14 +134,20 @@ var setMacaroonsTests = []struct {
 }{{
 	about: "success",
 	macaroons: map[string]macaroon.Slice{
-		"https://1.2.3.4/": macaroon.Slice{mustNewMacaroon("m1-test")},
-		"https://4.3.2.1/": macaroon.Slice{mustNewMacaroon("m2-test")},
+		"https://1.2.3.4/": macaroon.Slice{mustNewMacaroon("m1-test", macaroon.V2)},
+		"https://4.3.2.1/": macaroon.Slice{mustNewMacaroon("m2-test", macaroon.V2)},
+	},
+}, {
+	about: "success with v1 macaroon",
+	macaroons: map[string]macaroon.Slice{
+		"https://1.2.3.4/": macaroon.Slice{mustNewMacaroon("m1-test", macaroon.V1)},
+		"https://4.3.2.1/": macaroon.Slice{mustNewMacaroon("m2-test", macaroon.V1)},
 	},
 }, {
 	about: "error: bad url",
 	macaroons: map[string]macaroon.Slice{
-		"https://1.2.3.4/": macaroon.Slice{mustNewMacaroon("m1-test")},
-		":::":              macaroon.Slice{mustNewMacaroon("m2-test")},
+		"https://1.2.3.4/": macaroon.Slice{mustNewMacaroon("m1-test", macaroon.V2)},
+		":::":              macaroon.Slice{mustNewMacaroon("m2-test", macaroon.V2)},
 	},
 	expectedError: `cannot parse macaroon URL ":::": .*`,
 }, {
@@ -156,24 +163,42 @@ func TestSetMacaroons(t *testing.T) {
 		t.Run(test.about, func(t *testing.T) {
 			c := qt.New(t)
 			// Set up the cookie jar.
-			jar, err := cookiejar.New(nil)
-			c.Assert(err, qt.Equals, nil)
-			err = juju.SetMacaroons(jar, test.macaroons)
+			jar := &cookieJar{
+				cookies: make(map[string][]*http.Cookie),
+			}
+			err := juju.SetMacaroons(jar, test.macaroons)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				return
 			}
 			// The macaroons have been stored in the jar.
 			c.Assert(err, qt.Equals, nil)
-			for uStr, ms := range test.macaroons {
-				u := mustParseURL(uStr)
-				cookies := jar.Cookies(u)
-				expectedCookie, err := httpbakery.NewCookie(ms)
+			for u, cookies := range jar.cookies {
+				req, err := http.NewRequest("GET", u, nil)
 				c.Assert(err, qt.Equals, nil)
-				c.Assert(cookies[0], qt.DeepEquals, expectedCookie)
+				for _, cookie := range cookies {
+					req.AddCookie(cookie)
+					c.Assert(cookie.Expires, qt.Not(qt.Equals), time.Time{})
+				}
+				macaroons := httpbakery.RequestMacaroons(req)
+				c.Assert(macaroons, qt.HasLen, 1)
+				c.Assert(mustExportMacaroons(macaroons[0]), qt.DeepEquals, mustExportMacaroons(test.macaroons[u]))
 			}
 		})
 	}
+}
+
+// cookieJar implements http.CookieJar for testing.
+type cookieJar struct {
+	cookies map[string][]*http.Cookie
+}
+
+func (cj *cookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+	cj.cookies[u.String()] = cookies
+}
+
+func (*cookieJar) Cookies(u *url.URL) []*http.Cookie {
+	panic("cookieJar.Cookies unexpectedly called")
 }
 
 func TestMarshalAccounts(t *testing.T) {
@@ -236,8 +261,11 @@ func patchAPIOpen(c *qt.C, conn api.Connection, err error, expectedInfo *api.Inf
 		c.Assert(opts.Timeout, qt.Equals, 15*time.Second)
 		for u, ms := range expectedMacaroons {
 			cookies := opts.BakeryClient.Jar.Cookies(mustParseURL(u))
-			expectedCookie, err := httpbakery.NewCookie(ms)
+			c.Assert(cookies, qt.HasLen, 1)
+			expectedCookie, err := httpbakery.NewCookie(juju.CandidNamespace, ms)
 			c.Assert(err, qt.Equals, nil)
+			// Extracting the cookies from the Jar removes the expire time.
+			expectedCookie.Expires = time.Time{}
 			c.Assert(cookies[0], qt.DeepEquals, expectedCookie)
 		}
 		return conn, err
@@ -280,8 +308,8 @@ func (c *connection) Close() error {
 	return nil
 }
 
-func mustNewMacaroon(root string) *macaroon.Macaroon {
-	m, err := macaroon.New([]byte(root), "id", "loc")
+func mustNewMacaroon(root string, version macaroon.Version) *macaroon.Macaroon {
+	m, err := macaroon.New([]byte(root), []byte("id"), "loc", version)
 	if err != nil {
 		panic(err)
 	}
@@ -294,4 +322,16 @@ func mustParseURL(uStr string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+func mustExportMacaroons(ms macaroon.Slice) interface{} {
+	b, err := json.Marshal(ms)
+	if err != nil {
+		panic(err)
+	}
+	var x interface{}
+	if err = json.Unmarshal(b, &x); err != nil {
+		panic(err)
+	}
+	return x
 }

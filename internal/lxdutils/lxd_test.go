@@ -6,6 +6,7 @@ package lxdutils_test
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	qt "github.com/frankban/quicktest"
@@ -127,7 +128,7 @@ var ensureTests = []struct {
 		call("All"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
-		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "macaroon cookie data"),
 		// Cleaning up.
 		call("Get", "ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
@@ -186,7 +187,7 @@ var ensureTests = []struct {
 		call("All"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
-		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "macaroon cookie data"),
 		call(
 			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -220,7 +221,7 @@ var ensureTests = []struct {
 		call("All"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
-		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "macaroon cookie data"),
 		call(
 			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -255,7 +256,7 @@ var ensureTests = []struct {
 		call("All"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Started"),
 		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).Addr"),
-		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call("(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "macaroon cookie data"),
 		call(
 			"(ts-2f8dfb546853a3f551884e57e458533dfa5ad928-dalek).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -290,7 +291,7 @@ var ensureTests = []struct {
 		call("All"),
 		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Started"),
 		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).Addr"),
-		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "null"),
+		call("(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/my-controller.json", "macaroon cookie data"),
 		call(
 			"(ts-7b7074fca36fc89fb3f1e3c46d74f6ffe2477a09-rose).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -320,7 +321,7 @@ var ensureTests = []struct {
 		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Started"),
 		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Start"),
 		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).Addr"),
-		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call("(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "macaroon cookie data"),
 		call(
 			"(ts-fc1565bb1f8fe145fda53955901546405e01a80b-cyberman-externa).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -351,7 +352,7 @@ var ensureTests = []struct {
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Started"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Start"),
 		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).Addr"),
-		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call("(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "macaroon cookie data"),
 		call(
 			"(ts-3c91974643169203624b07aa9d35afb0564d6103-d-a-l-e-k).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -382,7 +383,7 @@ var ensureTests = []struct {
 		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Started"),
 		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Start"),
 		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).Addr"),
-		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "null"),
+		call("(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).WriteFile", "/home/ubuntu/.local/share/juju/cookies/ctrl.json", "macaroon cookie data"),
 		call(
 			"(ts-beea39c0e6f0984b3f7aa70a2fbf413fad16cd13-rose).WriteFile",
 			"/home/ubuntu/.local/share/juju/controllers.yaml",
@@ -546,7 +547,11 @@ func (c *container) Stop() error {
 }
 
 func (c *container) WriteFile(path string, data []byte) (err error) {
-	c.register("WriteFile", path, string(data))
+	content := string(data)
+	if strings.Contains(path, "/cookies/") {
+		content = "macaroon cookie data"
+	}
+	c.register("WriteFile", path, content)
 	if len(c.client.writeFileErrors) > 0 {
 		err = c.client.writeFileErrors[0]
 		c.client.writeFileErrors = c.client.writeFileErrors[1:]
@@ -569,7 +574,7 @@ func call(name string, args ...string) []string {
 }
 
 func mustNewMacaroon(root string) *macaroon.Macaroon {
-	m, err := macaroon.New([]byte(root), "id", "loc")
+	m, err := macaroon.New([]byte(root), []byte("id"), "loc", macaroon.V2)
 	if err != nil {
 		panic(err)
 	}

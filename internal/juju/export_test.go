@@ -3,4 +3,7 @@
 
 package juju
 
-var APIOpen = &apiOpen
+var (
+	APIOpen         = &apiOpen
+	CandidNamespace = candidNamespace
+)
