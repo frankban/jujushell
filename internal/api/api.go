@@ -105,7 +105,7 @@ func serveWebSocket(juju JujuParams, lxd LXDParams, svc SvcParams, reg *registry
 func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, allowedUsers []string) (info *juju.Info, creds *juju.Credentials, err error) {
 	var req apiparams.Login
 	if err = conn.ReadJSON(&req); err != nil {
-		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Mask(err))
+		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Notef(err, "cannot unmarshal login request"))
 	}
 	if req.Operation != apiparams.OpLogin {
 		return nil, nil, conn.Error(apiparams.OpLogin, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpLogin))
@@ -134,7 +134,7 @@ func handleLogin(conn wstransport.Conn, jujuAddrs []string, jujuCert string, all
 func handleStart(conn wstransport.Conn, lxd LXDParams, svc SvcParams, info *juju.Info, creds *juju.Credentials) (name, addr string, err error) {
 	var req apiparams.Start
 	if err = conn.ReadJSON(&req); err != nil {
-		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
+		return "", "", conn.Error(apiparams.OpStart, errgo.Notef(err, "cannot unmarshal start request"))
 	}
 	if req.Operation != apiparams.OpStart {
 		return "", "", conn.Error(apiparams.OpStart, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
