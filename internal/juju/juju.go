@@ -13,8 +13,10 @@ import (
 	"github.com/juju/juju/network"
 	"github.com/juju/names"
 	"gopkg.in/errgo.v1"
-	"gopkg.in/macaroon-bakery.v1/httpbakery"
-	macaroon "gopkg.in/macaroon.v1"
+	httpbakeryV1 "gopkg.in/macaroon-bakery.v1/httpbakery"
+	"gopkg.in/macaroon-bakery.v2/bakery/checkers"
+	"gopkg.in/macaroon-bakery.v2/httpbakery"
+	macaroon "gopkg.in/macaroon.v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,9 +28,9 @@ func Authenticate(addrs []string, creds *Credentials, cert string) (*Info, error
 		Addrs:  addrs,
 		CACert: cert,
 	}
-	var client *httpbakery.Client
+	var client *httpbakeryV1.Client
 	if len(creds.Macaroons) != 0 {
-		client = httpbakery.NewClient()
+		client = httpbakeryV1.NewClient()
 		if err := SetMacaroons(client.Jar, creds.Macaroons); err != nil {
 			return nil, errgo.Notef(err, "cannot store macaroons for logging into controller")
 		}
@@ -89,7 +91,7 @@ func SetMacaroons(jar http.CookieJar, macaroons map[string]macaroon.Slice) error
 		if err != nil {
 			return errgo.Notef(err, "cannot parse macaroon URL %q", uStr)
 		}
-		cookie, err := httpbakery.NewCookie(ms)
+		cookie, err := httpbakery.NewCookie(candidNamespace, ms)
 		if err != nil {
 			return errgo.Notef(err, "cannot create cookie for %q", uStr)
 		}
@@ -97,6 +99,9 @@ func SetMacaroons(jar http.CookieJar, macaroons map[string]macaroon.Slice) error
 	}
 	return nil
 }
+
+// TODO(frankban): this should really be provided by candid itself.
+var candidNamespace = checkers.NewNamespace(map[string]string{"std": ""})
 
 // MarshalAccounts encodes the given credentials information so that they are
 // suitable for being used as the content of the Juju accounts.yaml file.
