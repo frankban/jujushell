@@ -1,5 +1,5 @@
 github.com/beorn7/perks	git	3ac7bf7a47d159a033b107610db8a1b6575507a4	2016-02-29T21:34:45Z
-github.com/frankban/quicktest	git	d61176cfb5a3411e732dd737d8a90e3db29debf4	2018-05-01T13:34:00Z
+github.com/frankban/quicktest	git	612129f07643619aa4081e3984b184fef871c3cd	2018-07-27T13:19:33Z
 github.com/golang/protobuf	git	4bd1920723d7b7c925de087aa32e2187708897f7	2016-11-09T07:27:36Z
 github.com/google/go-cmp	git	3af367b6b30c263d47e8895973edcca9a49cf029	2018-02-02T21:19:42Z
 github.com/gorilla/websocket	git	21ab95fa12b9bdd8fecf5fa3586aad941cc98785	2018-04-20T17:16:12Z
@@ -27,8 +27,8 @@ github.com/juju/utils	git	9b65c33e54c793d74a4ed99c15111c44faddb8e4	2017-10-25T16
 github.com/juju/version	git	1f41e27e54f21acccf9b2dddae063a782a8a7ceb	2016-10-31T05:19:06Z
 github.com/juju/webbrowser	git	54b8c57083b4afb7dc75da7f13e2967b2606a507	2016-03-09T14:36:29Z
 github.com/julienschmidt/httprouter	git	77a895ad01ebc98a4dc95d8355bc825ce80a56f6	2015-10-13T22:55:20Z
-github.com/kr/pretty	git	cfb55aafdaf3ec08f0db22699ab822c50091b1c4	2016-08-23T17:07:15Z
-github.com/kr/text	git	7cafcd837844e784b526369c9bce262804aebc60	2016-05-04T23:40:17Z
+github.com/kr/pretty	git	73f6ac0b30a98e433b289500d779f50c1a6f0712	2018-05-06T08:33:45Z
+github.com/kr/text	git	e2ffdb16a802fe2bb95e2e35ff34f0e53aeef34f	2018-05-06T08:24:08Z
 github.com/lunixbochs/vtclean	git	4fbf7632a2c6d3fbdb9931439bdbbeded02cbe36	2016-01-25T03:51:06Z
 github.com/lxc/lxd	git	e641ae45dc13cc27510c9d2127eece46ed9ac16b	2018-03-30T04:06:27Z
 github.com/mattn/go-colorable	git	ed8eb9e318d7a84ce5915b495b7d35e0cfe7b5a8	2016-07-31T23:54:17Z
@@ -43,7 +43,7 @@ github.com/rogpeppe/fastuuid	git	6724a57986aff9bff1a1770e9347036def7c89f6	2015-0
 go.uber.org/atomic	git	54f72d32435d760d5604f17a82e2435b28dc4ba5	2017-08-29T22:32:23Z
 go.uber.org/multierr	git	fb7d312c2c04c34f0ad621048bbb953b168f9ff6	2017-08-29T22:43:07Z
 go.uber.org/zap	git	7a9ca91fa627ed52c7ff4fcc95cd044dc2c82a51	2017-09-21T19:08:14Z
-golang.org/x/crypto	git	ae8bce0030810cf999bb2b9868ae5c7c58e6343b	2018-04-30T18:12:35Z
+golang.org/x/crypto	git	c126467f60eb25f8f27e5a981f32a87e3965053f	2018-07-23T16:41:46Z
 golang.org/x/net	git	8b4af36cd21a1f85a7484b49feb7c79363106d8e	2016-10-13T03:57:02Z
 golang.org/x/sync	git	f52d1811a62927559de87708c8913c1650ce4f26	2017-05-17T21:12:32Z
 golang.org/x/sys	git	78d5f264b493f125018180c204871ecf58a2dce1	2018-05-01T09:27:40Z

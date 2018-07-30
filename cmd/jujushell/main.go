@@ -61,7 +61,7 @@ func serve(configPath string) error {
 	if err != nil {
 		return errgo.Notef(err, "cannot create new server")
 	}
-	tlsConf, challengeHandler, err := tlsConfig(conf.TLSCert, conf.TLSKey, conf.DNSName)
+	tlsConf, err := tlsConfig(conf.TLSCert, conf.TLSKey, conf.DNSName)
 	if err != nil {
 		return errgo.Notef(err, "cannot retrieve TLS configuration")
 	}
@@ -70,10 +70,6 @@ func serve(configPath string) error {
 		Handler: handler,
 	}
 	if tlsConf != nil {
-		if challengeHandler != nil {
-			// Listen to port 80 as well in this case, for the HTTP challenge.
-			go http.ListenAndServe(":http", challengeHandler)
-		}
 		server.TLSConfig = tlsConf
 		return server.ListenAndServeTLS("", "")
 	}
@@ -81,36 +77,33 @@ func serve(configPath string) error {
 }
 
 // tlsConfig returns a TLS configuration for the given keys and DNS name.
-// When the DNS name is not empty, Let's Encrypt is used to manage certs, and
-// an HTTP handler for handling challenges is also returned.
-func tlsConfig(cert, key, name string) (*tls.Config, http.Handler, error) {
+// When the DNS name is not empty, Let's Encrypt is used to manage certs.
+func tlsConfig(cert, key, name string) (*tls.Config, error) {
 	if cert == "" && key == "" {
 		if name == "" {
 			// Without certificates or DNS name, the server runs in insecure
 			// mode.
-			return nil, nil, nil
+			return nil, nil
 		}
 		// Use Let's Encrypt.
 		dir, err := cacheDir()
 		if err != nil {
-			return nil, nil, errgo.Notef(err, "cannot cache certificates")
+			return nil, errgo.Notef(err, "cannot cache certificates")
 		}
-		manager := autocert.Manager{
+		m := autocert.Manager{
 			Cache:      autocert.DirCache(dir),
 			HostPolicy: autocert.HostWhitelist(name),
 			Prompt:     autocert.AcceptTOS,
 		}
-		return &tls.Config{
-			GetCertificate: manager.GetCertificate,
-		}, manager.HTTPHandler(nil), nil
+		return m.TLSConfig(), nil
 	}
 	c, err := tls.X509KeyPair([]byte(cert), []byte(key))
 	if err != nil {
-		return nil, nil, errgo.Notef(err, "cannot create TLS certificate")
+		return nil, errgo.Notef(err, "cannot create TLS certificate")
 	}
 	return &tls.Config{
 		Certificates: []tls.Certificate{c},
-	}, nil, nil
+	}, nil
 }
 
 // cacheDir returns the directory to use for caching certificates.
