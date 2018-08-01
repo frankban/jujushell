@@ -66,7 +66,8 @@ func TestNew(t *testing.T) {
 	for _, test := range newTests {
 		c.Run(test.about, func(c *qt.C) {
 			// Patch the LXD client connection.
-			c.Patch(registry.LXDutilsConnect, func() (lxdclient.Client, error) {
+			c.Patch(registry.LXDutilsConnect, func(socket string) (lxdclient.Client, error) {
+				c.Assert(socket, qt.Equals, socketPath)
 				if test.clientError != "" {
 					return nil, errors.New(test.clientError)
 				}
@@ -82,7 +83,7 @@ func TestNew(t *testing.T) {
 			})
 
 			// Run the test.
-			r, err := registry.New(duration)
+			r, err := registry.New(duration, socketPath)
 			if test.expectedError != "" {
 				c.Assert(err, qt.ErrorMatches, test.expectedError)
 				c.Assert(r, qt.IsNil)
@@ -106,7 +107,7 @@ func TestGet(t *testing.T) {
 	cl := client{
 		getResult: newContainer("my-container", true, nil),
 	}
-	c.Patch(registry.LXDutilsConnect, func() (lxdclient.Client, error) {
+	c.Patch(registry.LXDutilsConnect, func(socket string) (lxdclient.Client, error) {
 		return &cl, nil
 	})
 	var timeoutFunc func()
@@ -116,7 +117,7 @@ func TestGet(t *testing.T) {
 	})
 
 	//  Create a registry.
-	r, err := registry.New(duration)
+	r, err := registry.New(duration, socketPath)
 	c.Assert(err, qt.Equals, nil)
 
 	// Get an active container.
@@ -224,3 +225,6 @@ func call(name string, args ...string) []string {
 
 // duration is the timeout duration used in tests.
 var duration = 42 * time.Second
+
+// socketPath is the path to the LXD socket used in tests.
+const socketPath = "/path/to/lxd.socket"

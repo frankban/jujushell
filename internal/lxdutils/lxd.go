@@ -19,18 +19,14 @@ import (
 	"github.com/juju/jujushell/internal/lxdclient"
 )
 
-const (
-	// lxdSocket holds the path to the LXD socket provided by snapped LXD.
-	lxdSocket = "/var/snap/lxd/common/lxd/unix.socket"
-	// jujuDataDir holds the directory used by Juju for its data.
-	jujuDataDir = "/home/ubuntu/.local/share/juju"
-)
+// jujuDataDir holds the directory used by Juju for its data.
+const jujuDataDir = "/home/ubuntu/.local/share/juju"
 
 var log = logging.Log()
 
 // Connect establishes a connection to the local snapped LXD server.
-func Connect() (lxdclient.Client, error) {
-	client, err := lxdclient.New(lxdSocket)
+func Connect(socketPath string) (lxdclient.Client, error) {
+	client, err := lxdclient.New(socketPath)
 	if err != nil {
 		return nil, errgo.Notef(err, "cannot connect to local LXD server")
 	}

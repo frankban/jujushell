@@ -31,6 +31,8 @@ type Config struct {
 	JujuCert string `yaml:"juju-cert"`
 	// LogLevel holds the logging level to use when running the server.
 	LogLevel zapcore.Level `yaml:"log-level"`
+	// LXDSocketPath holds the path to the LXD unix socket.
+	LXDSocketPath string `yaml:"lxd-socket-path"`
 	// Port holds the port on which the server will start listening.
 	Port int `yaml:"port"`
 	// Profiles holds the LXD profiles to use when launching containers.
@@ -77,6 +79,9 @@ func validate(c Config) error {
 	}
 	if len(c.JujuAddrs) == 0 {
 		missing = append(missing, "juju-addrs")
+	}
+	if c.LXDSocketPath == "" {
+		missing = append(missing, "lxd-socket-path")
 	}
 	if c.Port <= 0 {
 		missing = append(missing, "port")

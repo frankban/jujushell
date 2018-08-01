@@ -1,7 +1,8 @@
 port: 8047
 juju-addrs: []
 log-level: debug
-image-name: "termserver"
+image-name: termserver
+lxd-socket-path: /var/snap/lxd/common/lxd/unix.socket
 profiles: ["default"]
 tls-cert: |
   -----BEGIN CERTIFICATE-----

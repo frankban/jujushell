@@ -107,7 +107,7 @@ func TestServeWebSocket(t *testing.T) {
 // setupMux creates and returns a mux with the API registered.
 func setupMux(c *qt.C, addrs, allowedUsers []string) *http.ServeMux {
 	mux := http.NewServeMux()
-	c.Patch(api.RegistryNew, func(d time.Duration) (*registry.Registry, error) {
+	c.Patch(api.RegistryNew, func(d time.Duration, socketPath string) (*registry.Registry, error) {
 		return &registry.Registry{}, nil
 	})
 	err := api.Register(mux, api.JujuParams{
