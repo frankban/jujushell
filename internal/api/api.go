@@ -26,7 +26,7 @@ var log = logging.Log()
 
 // Register registers the API handlers in the given mux.
 func Register(mux *http.ServeMux, juju JujuParams, lxd LXDParams, svc SvcParams) error {
-	reg, err := registryNew(svc.SessionDuration)
+	reg, err := registryNew(svc.SessionDuration, lxd.LXDSocketPath)
 	if err != nil {
 		return errgo.Notef(err, "cannot create container registry")
 	}
@@ -48,6 +48,8 @@ type JujuParams struct {
 type LXDParams struct {
 	// ImageName holds the name of the LXD image to use.
 	ImageName string
+	// LXDSocketPath holds the path to the LXD unix socket.
+	LXDSocketPath string
 	// Profiles holds the LXD profile names.
 	Profiles []string `yaml:"profiles"`
 }
@@ -140,7 +142,7 @@ func handleStart(conn wstransport.Conn, lxd LXDParams, svc SvcParams, info *juju
 		return "", "", conn.Error(apiparams.OpStart, errgo.Newf("invalid operation %q: expected %q", req.Operation, apiparams.OpStart))
 	}
 	log.Debugw("connecting to the LXD server")
-	lxdclient, err := lxdutils.Connect()
+	lxdclient, err := lxdutils.Connect(lxd.LXDSocketPath)
 	if err != nil {
 		return "", "", conn.Error(apiparams.OpStart, errgo.Mask(err))
 	}
@@ -203,6 +205,6 @@ var jujuAuthenticate = func(addrs []string, creds *juju.Credentials, cert string
 }
 
 // registryNew is defined as a variable for testing.
-var registryNew = func(d time.Duration) (*registry.Registry, error) {
-	return registry.New(d)
+var registryNew = func(d time.Duration, socketPath string) (*registry.Registry, error) {
+	return registry.New(d, socketPath)
 }

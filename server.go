@@ -19,8 +19,9 @@ func NewServer(p Params) (http.Handler, error) {
 		Addrs: p.JujuAddrs,
 		Cert:  p.JujuCert,
 	}, api.LXDParams{
-		ImageName: p.ImageName,
-		Profiles:  p.Profiles,
+		ImageName:     p.ImageName,
+		LXDSocketPath: p.LXDSocketPath,
+		Profiles:      p.Profiles,
 	}, api.SvcParams{
 		AllowedUsers:    p.AllowedUsers,
 		SessionDuration: p.SessionDuration,
@@ -42,6 +43,8 @@ type Params struct {
 	JujuAddrs []string
 	// JujuCert holds the controller CA certificate in PEM format.
 	JujuCert string
+	// LXDSocketPath holds the path to the LXD unix socket.
+	LXDSocketPath string
 	// Profiles holds the LXD profiles to use when launching containers.
 	Profiles []string
 	// SessionDuration holds time duration before expiring container sessions.

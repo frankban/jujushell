@@ -1,7 +1,8 @@
 port: 8047
 juju-addrs: ["jimm.jujucharms.com:443"]
 log-level: debug
-image-name: "termserver"
+image-name: termserver
+lxd-socket-path: /var/snap/lxd/common/lxd/unix.socket
 profiles: ["default"]
 session-timeout: 2
 welcome-message: |

@@ -16,9 +16,11 @@ import (
 
 var log = logging.Log()
 
-// New creates and returns a new registry for active containers.
-func New(d time.Duration) (*Registry, error) {
-	client, err := lxdutilsConnect()
+// New creates and returns a new registry for active containers. Containers are
+// stopped after the provided duration. The LXD client is connected using the
+// given socket path.
+func New(d time.Duration, socketPath string) (*Registry, error) {
+	client, err := lxdutilsConnect(socketPath)
 	if err != nil {
 		return nil, errgo.Notef(err, "cannot connect to LXD")
 	}
@@ -28,6 +30,7 @@ func New(d time.Duration) (*Registry, error) {
 	}
 	r := Registry{
 		d:          d,
+		socketPath: socketPath,
 		containers: make(map[string]*ActiveContainer, len(cs)),
 	}
 	for _, c := range cs {
@@ -42,6 +45,7 @@ func New(d time.Duration) (*Registry, error) {
 // Get method on the registry to retrieve a stored container or add a new one.
 type Registry struct {
 	d          time.Duration
+	socketPath string
 	mu         sync.Mutex
 	containers map[string]*ActiveContainer
 }
@@ -74,7 +78,7 @@ func (r *Registry) Get(name string) *ActiveContainer {
 // stop stops the container with the given name. It is usally called by a timer
 // after a certain amount of time without any activity on the container.
 func (r *Registry) stop(name string) error {
-	client, err := lxdutilsConnect()
+	client, err := lxdutilsConnect(r.socketPath)
 	if err != nil {
 		return errgo.Mask(err)
 	}
@@ -117,8 +121,8 @@ func (c *ActiveContainer) SetActive() {
 }
 
 // lxdutilsConnect is defined as a variable for testing.
-var lxdutilsConnect = func() (lxdclient.Client, error) {
-	return lxdutils.Connect()
+var lxdutilsConnect = func(socketPath string) (lxdclient.Client, error) {
+	return lxdutils.Connect(socketPath)
 }
 
 // timeAfterFunc is defined as a variable for testing.

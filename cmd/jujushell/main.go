@@ -54,6 +54,7 @@ func serve(configPath string) error {
 		ImageName:       conf.ImageName,
 		JujuAddrs:       conf.JujuAddrs,
 		JujuCert:        conf.JujuCert,
+		LXDSocketPath:   conf.LXDSocketPath,
 		Profiles:        conf.Profiles,
 		SessionDuration: time.Duration(conf.SessionTimeout) * time.Minute,
 		WelcomeMessage:  conf.WelcomeMessage,
