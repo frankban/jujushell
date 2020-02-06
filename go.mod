@@ -1,0 +1,70 @@
+module github.com/juju/jujushell
+
+go 1.13
+
+require (
+	github.com/beorn7/perks v0.0.0-20160229213445-3ac7bf7a47d1
+	github.com/frankban/quicktest v1.7.2
+	github.com/golang/protobuf v0.0.0-20161109072736-4bd1920723d7
+	github.com/google/go-cmp v0.3.1
+	github.com/gorilla/websocket v1.2.1-0.20180420171612-21ab95fa12b9
+	github.com/juju/ansiterm v0.0.0-20160907234532-b99631de12cf
+	github.com/juju/cmd v0.0.0-20171107070456-e74f39857ca0
+	github.com/juju/errors v0.0.0-20150916125642-1b5e39b83d18
+	github.com/juju/gnuflag v0.0.0-20171113085948-2ce1bb71843d
+	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a
+	github.com/juju/gojsonpointer v0.0.0-20150204194629-afe8b77aa08f
+	github.com/juju/gojsonreference v0.0.0-20150204194633-f0d24ac5ee33
+	github.com/juju/gojsonschema v0.0.0-20150312170016-e1ad140384f2
+	github.com/juju/httpprof v0.0.0-20141217160036-14bf14c30767
+	github.com/juju/httprequest v0.0.0-20161006150909-266fd1e9debf
+	github.com/juju/idmclient v0.0.0-20170209162749-4dc25171f675
+	github.com/juju/juju v0.0.0-20180423050211-ac28813fcd59
+	github.com/juju/loggo v0.0.0-20170605014607-8232ab8918d9
+	github.com/juju/mutex v0.0.0-20171110020013-1fe2a4bf0a3a
+	github.com/juju/names v0.0.0-20160330150533-8a0aa0963bba
+	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9
+	github.com/juju/replicaset v0.0.0-20170913040223-0072546a972e
+	github.com/juju/rfc v0.0.0-20160711024213-ebdbbdb950cd
+	github.com/juju/schema v0.0.0-20160420044203-075de04f9b7d
+	github.com/juju/usso v0.0.0-20160401104424-68a59c96c178
+	github.com/juju/utils v0.0.0-20171025163856-9b65c33e54c7
+	github.com/juju/version v0.0.0-20161031051906-1f41e27e54f2
+	github.com/juju/webbrowser v0.0.0-20160309143629-54b8c57083b4
+	github.com/julienschmidt/httprouter v1.1.1-0.20151013225520-77a895ad01eb
+	github.com/kr/pretty v0.1.0
+	github.com/kr/text v0.1.0
+	github.com/lunixbochs/vtclean v0.0.0-20160125035106-4fbf7632a2c6
+	github.com/lxc/lxd v0.0.0-20180330040627-e641ae45dc13
+	github.com/mattn/go-colorable v0.0.6
+	github.com/mattn/go-isatty v0.0.0-20160806122752-66b8e73f3f5c
+	github.com/matttproud/golang_protobuf_extensions v1.0.1
+	github.com/pkg/errors v0.8.1-0.20161002052512-839d9e913e06
+	github.com/prometheus/client_golang v0.9.0-pre1.0.20180416233856-82f5ff156b29
+	github.com/prometheus/client_model v0.0.0-20150212101744-fa8ad6fec335
+	github.com/prometheus/common v0.0.0-20160503220532-dd586c1c5abb
+	github.com/prometheus/procfs v0.0.0-20160411190841-abf152e5f3e9
+	github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af
+	go.uber.org/atomic v1.3.0
+	go.uber.org/multierr v1.1.1-0.20170829224307-fb7d312c2c04
+	go.uber.org/zap v1.7.0
+	golang.org/x/crypto v0.0.0-20180723164146-c126467f60eb
+	golang.org/x/net v0.0.0-20161013035702-8b4af36cd21a
+	golang.org/x/sync v0.0.0-20170517211232-f52d1811a629
+	golang.org/x/sys v0.0.0-20180501092740-78d5f264b493
+	gopkg.in/errgo.v1 v1.0.0-20161222125816-442357a80af5
+	gopkg.in/httprequest.v1 v1.1.1
+	gopkg.in/juju/charm.v6 v6.0.0-20171114084658-d93cf8b75cf4
+	gopkg.in/juju/charmrepo.v2 v2.0.0-20171114184045-653bbd81990d
+	gopkg.in/juju/environschema.v1 v1.0.0-20151104115810-7359fc7857ab
+	gopkg.in/juju/names.v2 v2.0.0-20171113112047-54f00845ae47
+	gopkg.in/juju/worker.v1 v1.0.0-20170308002458-6965b9d82671
+	gopkg.in/macaroon-bakery.v1 v1.0.0-20160622121421-469b44e6f1f9
+	gopkg.in/macaroon-bakery.v2 v2.0.1
+	gopkg.in/macaroon.v1 v1.0.0-20150121114231-ab3940c6c165
+	gopkg.in/macaroon.v2 v2.0.0
+	gopkg.in/mgo.v2 v2.0.0-20160818015218-f2b6f6c918c4
+	gopkg.in/retry.v1 v1.0.0-20170531091238-01631078ef2f
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
+	gopkg.in/yaml.v2 v2.2.1
+)
