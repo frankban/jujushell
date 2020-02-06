@@ -4,9 +4,9 @@ go 1.13
 
 require (
 	github.com/beorn7/perks v0.0.0-20160229213445-3ac7bf7a47d1
-	github.com/frankban/quicktest v1.0.0
+	github.com/frankban/quicktest v1.7.2
 	github.com/golang/protobuf v0.0.0-20161109072736-4bd1920723d7
-	github.com/google/go-cmp v0.2.0
+	github.com/google/go-cmp v0.3.1
 	github.com/gorilla/websocket v1.2.1-0.20180420171612-21ab95fa12b9
 	github.com/juju/ansiterm v0.0.0-20160907234532-b99631de12cf
 	github.com/juju/cmd v0.0.0-20171107070456-e74f39857ca0

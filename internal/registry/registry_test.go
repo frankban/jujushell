@@ -101,7 +101,7 @@ func TestNew(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	c := qt.New(t)
-	defer c.Cleanup()
+	defer c.Done()
 
 	// Patch lxdutils.Connect and time.AfterFunc calls.
 	cl := client{
