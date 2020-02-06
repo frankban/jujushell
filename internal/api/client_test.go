@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -91,8 +92,11 @@ func withServer(c *qt.C, handler http.Handler, expectedSleepCalls int, f func(ur
 // handler returns an http.Handler that returns a response with the given body
 // after the given number of failed attempts.
 func handler(c *qt.C, body string, after int) http.Handler {
+	var mu sync.Mutex
 	var counter int
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		if counter < after {
 			counter++
 			// Simulate a scenario in which the server is not available.

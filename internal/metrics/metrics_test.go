@@ -66,15 +66,14 @@ func TestInstrumentHandler(t *testing.T) {
 func TestInstrumentWSConnection(t *testing.T) {
 	c := qt.New(t)
 	errs := []string{"bad wolf", "bad wolf", "exterminate"}
+	msgs := make(chan string, 1)
 	// Set up a WebSocket server that writes a JSON error response.
 	wsSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		conn, err := wstransport.Upgrade(w, req)
 		c.Assert(err, qt.Equals, nil)
 		defer conn.Close()
 		conn = metrics.InstrumentWSConnection(conn)
-		msg := errs[0]
-		errs = errs[1:]
-		conn.Error(apiparams.OpStart, errors.New(msg))
+		conn.Error(apiparams.OpStart, errors.New(<-msgs))
 	}))
 	defer wsSrv.Close()
 
@@ -84,7 +83,8 @@ func TestInstrumentWSConnection(t *testing.T) {
 
 	// Connect to the WebSocket server multiple times.
 	url := wsURL(wsSrv.URL)
-	for range errs {
+	for _, msg := range errs {
+		msgs <- msg
 		conn, _, err := websocket.DefaultDialer.Dial(url, nil)
 		c.Assert(err, qt.Equals, nil)
 		conn.Close()
